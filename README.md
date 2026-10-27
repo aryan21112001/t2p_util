@@ -181,7 +181,7 @@ out/<client>/<workbook>/
 Notes:
 
 - **Everything that is extracted is stored as definite, schema-checked YAML.** The YAML files are the single source of truth between stages: they can be inspected, diffed, hand-edited and re-fed to later stages, and they are what the LLM tooling reads and writes.
-- **Assumption to confirm:** reports connect to the **original source systems** by default (connections are parameterised in Power Query), while data that only exists inside the `.twbx` package is extracted into `04_powerbi/data/`. Repointing to a new location (e.g. a lakehouse) is a parameter change, not a rebuild.
+- **Confirmed:** reports connect to the **original source systems** by default (connections are parameterised in Power Query), while data that only exists inside the `.twbx` package is extracted into `04_powerbi/data/`. Repointing to a new location (e.g. a lakehouse) is a parameter change, not a rebuild.
 
 - PBIP is the target because it is plain text, Git-friendly and can be generated as code. Verify the current status of the PBIR report format against Microsoft's documentation before relying on it; the generator should be able to fall back to the legacy report format if needed.
 - `.ossie.yaml` is a **project naming convention**, not something the Ossie spec mandates.
@@ -565,8 +565,10 @@ Planned requirements (to be confirmed as implementation proceeds):
 |---|---|---|
 | 1 | Tableau versions | **All versions** are in scope (see [section 22](#22-large-packaged-workbooks-and-version-support)) |
 | 2 | Volume and size | **One workbook per run.** Packaged workbooks can be **several GB**, so processing is streaming and disk-aware |
-| 3 | Power BI / Fabric workspace and service principal | Not available locally yet but can be arranged. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
-| 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports connect to the original sources by default (assumption to confirm) |
+| 3 | Power BI / Fabric workspace and service principal | Will be provided and managed. Testing happens on a separate environment and machine that will have everything in place. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
+| 9 | Hardware limits | Not a concern: the target machine will have enough disk and memory. The disk pre-check and streaming design stay as safeguards |
+| 10 | Packaged data type | Packaged data in the large workbooks is **mostly `.hyper` extracts**; the `.hyper` to Parquet path is the primary data route |
+| 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports **connect to the original source systems** (confirmed); data that exists only inside a `.twbx` is extracted into the output folder |
 | 5 | Row-level security | **Full access:** all users see all rows, so no RLS roles are generated. The tool still detects user filters / `USERNAME()`-style logic and warns if any is found; see [section 24](#24-row-level-security-handling) |
 | 6 | LLM data policy | No restriction on formulas and metadata. All extracted content is stored as **definite YAML files** that the LLM tooling reads and writes. Row-level data is never sent |
 | 7 | Theme / naming standard | None fixed. The **theme is driven by user input** (for example a client name), with researched suggestions ([section 23](#23-theme-and-branding-assistant)) |
@@ -574,11 +576,7 @@ Planned requirements (to be confirmed as implementation proceeds):
 
 ### Still open
 
-1. **Output connections:** confirm that reports should reference the original source systems (with packaged-only data extracted into the output folder), and not a new central store.
-2. **Service principal:** who provides the Power BI / Fabric workspace and when? This gates data and visual parity checks.
-3. **Hardware limits:** how much disk and memory does the machine running multi-GB workbooks have?
-4. **Which sources hold the embedded data** in the large `.twbx` files (extracts vs. loose files)? This decides how the Parquet conversion is sized.
-5. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly?
+1. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly? Until answered, the theme assistant proposes options and the user picks.
 
 ---
 
