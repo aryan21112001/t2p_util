@@ -1,0 +1,53 @@
+# Realistic Dummy Data Generator Configuration
+# Creates realistic synthetic data by analyzing actual Tableau data
+
+generation:
+  # Scale factor for row counts (1.0 = same as source, 0.5 = half, 2.0 = double)
+  scale_factor: 0.5
+  
+  # Output file format
+  file_format: "csv"  # csv | json
+  
+  # Random seed for reproducibility
+  seed: 42
+
+data_profiling:
+  # Extract data from .twbx to create profiles
+  enable_profiling: true
+  
+  # Maximum sample size for profiling (for large tables)
+  max_sample_rows: 10000
+  
+  # Column cardinality threshold for detecting categories
+  category_threshold: 20
+  
+  # Preserve value distributions where possible
+  respect_distributions: true
+
+data_generation:
+  # How to handle null/missing values in generation
+  null_handling: "preserve"  # preserve | eliminate | reduce
+  
+  # Whether to generate matching referential integrity
+  # (e.g., if original has FK relationships)
+  maintain_fk_integrity: true
+  
+  # Anonymization/obfuscation rules (for sensitive data)
+  obfuscation:
+    enabled: false
+    patterns:
+      # Example: emails are masked
+      email: "*****@domain.com"
+      # Example: SSNs are masked
+      ssn: "XXX-XX-****"
+
+# Per-table overrides
+table_overrides:
+  # Example:
+  # Customers:
+  #   scale_factor: 1.0  # Keep full size
+  #   exclude_columns: [Password, SSN]
+  #
+  # Sales:
+  #   scale_factor: 0.5  # Half size
+  #   obfuscation: true

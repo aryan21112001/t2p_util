@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<workbook source-build='2024.1.0' version='18.1'>
+  <datasources>
+    <datasource caption='Parameters' name='Parameters'>
+      <column caption='Threshold' datatype='integer' name='[Parameter 9]' param-domain-type='range' role='measure' type='quantitative' value='50'>
+        <range granularity='5' max='100' min='0' />
+      </column>
+    </datasource>
+    <datasource caption='Sales DB' name='federated.aaa'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='sqlsrv' name='sqlserver.1'>
+            <connection class='sqlserver' dbname='AdventureWorks' server='sql01.example.com' />
+          </named-connection>
+        </named-connections>
+        <relation join='inner' type='join'>
+          <clause type='join'>
+            <expression op='='>
+              <expression op='[Orders].[cust_id]' />
+              <expression op='[Cust].[cust_id]' />
+            </expression>
+          </clause>
+          <relation name='Orders' table='[dbo].[Orders]' type='table' />
+          <relation name='Cust' table='[dbo].[Cust]' type='table' />
+        </relation>
+      </connection>
+      <column datatype='string' name='[region]' role='dimension' type='nominal' />
+      <column datatype='integer' name='[amount]' role='measure' type='quantitative' />
+      <column datatype='date' name='[order_date]' role='dimension' type='ordinal' />
+      <column caption='Region Group' datatype='string' name='[region_grp]' role='dimension' type='nominal'>
+        <calculation class='categorical-bin' column='[region]'>
+          <bin value='&quot;West&quot;'><value>&quot;CA&quot;</value><value>&quot;OR&quot;</value></bin>
+        </calculation>
+      </column>
+      <column caption='Amount Bin' datatype='integer' name='[amount_bin]' role='dimension' type='ordinal'>
+        <calculation class='bin' column='[amount]' decimal='25' />
+      </column>
+      <column caption='Incl LOD' datatype='real' name='[incl]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ INCLUDE [region] : SUM([amount]) }' />
+      </column>
+      <column caption='Excl LOD' datatype='real' name='[excl]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ EXCLUDE [region] : SUM([amount]) }' />
+      </column>
+      <column caption='Fixed LOD' datatype='real' name='[fx]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ FIXED [region] : SUM([amount]) }' />
+      </column>
+      <column caption='Week Name' datatype='string' name='[wk]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula="DATENAME('week',[order_date])" />
+      </column>
+      <column caption='Date As Text' datatype='string' name='[dtxt]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='STR([order_date])' />
+      </column>
+      <column caption='Big Amount' datatype='boolean' name='[big]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='[amount] &gt; [Parameters].[Parameter 9]' />
+      </column>
+      <drill-path name='Geo'><field>[region]</field><field>[region_grp]</field></drill-path>
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='Pie View'>
+      <table><view><datasources><datasource caption='Sales DB' name='federated.aaa' /></datasources></view>
+        <panes><pane><mark class='Pie' /></pane></panes>
+        <rows>[federated.aaa].[sum:amount:qk]</rows>
+        <cols>[federated.aaa].[none:region:nk]</cols>
+      </table>
+    </worksheet>
+    <worksheet name='Gantt Sheet'>
+      <table><view><datasources><datasource caption='Sales DB' name='federated.aaa' /></datasources></view>
+        <panes><pane><mark class='GanttBar' /></pane></panes>
+        <rows>[federated.aaa].[none:region:nk]</rows>
+        <cols>[federated.aaa].[sum:amount:qk]</cols>
+      </table>
+    </worksheet>
+  </worksheets>
+  <dashboards>
+    <dashboard name='Probe DB'>
+      <size maxheight='800' maxwidth='1400' />
+      <zones>
+        <zone h='50000' id='1' name='Pie View' w='50000' x='0' y='0' />
+        <zone h='50000' id='2' name='Gantt Sheet' w='50000' x='50000' y='0' />
+        <zone h='30000' id='3' type-v2='extension' w='30000' x='0' y='50000' />
+        <zone h='20000' id='4' param='[Parameters].[Parameter 9]' type-v2='paramctrl' w='20000' x='40000' y='50000' />
+        <zone h='20000' id='5' type-v2='web' w='20000' x='70000' y='50000' />
+      </zones>
+    </dashboard>
+  </dashboards>
+</workbook>
