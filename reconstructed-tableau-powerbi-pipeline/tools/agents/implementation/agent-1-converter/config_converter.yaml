@@ -1,0 +1,45 @@
+# Converter Agent Configuration
+# Controls how Tableau workbooks are converted to Power BI projects
+
+conversion:
+  # Whether to clean existing output before conversion
+  clean_output: true
+  
+  # Validation settings
+  validation:
+    enabled: true
+    fail_on_warnings: false
+    checks:
+      - structural
+      - references
+      - measures
+
+# Mapping customizations
+mappings:
+  # Custom DAX translations (if needed)
+  custom_measures: {}
+  
+  # Column/field name transformations
+  field_transforms: {}
+  
+  # Data type overrides
+  type_overrides: {}
+
+# Data source handling
+data_sources:
+  # How to handle embedded vs. linked data
+  embedded_strategy: "extract"  # extract | link | skip
+  
+  # TDS (Tableau Data Source) folder path
+  tds_folder: null
+
+# Output settings
+output:
+  # Whether to create .pbix package
+  package_pbix: false
+  
+  # Whether to copy images and resources
+  copy_resources: true
+  
+  # Report name (defaults to workbook name)
+  report_name: null

@@ -1,0 +1,57 @@
+# Dummy Data Generator Configuration
+# Fast synthetic data for smoke testing and development
+
+generation:
+  # Number of rows to generate per table (can be overridden per table)
+  default_row_count: 100
+  
+  # Output file format
+  file_format: "csv"  # csv | json
+  
+  # Random seed for reproducibility (use same value to get identical data)
+  seed: 42
+
+# Define tables and columns if you want specific dummy data
+# Omit this section to auto-generate generic tables
+tables:
+  # Example:
+  # Customers:
+  #   rows: 500  # override default row count
+  #   columns:
+  #     CustomerID: "int"
+  #     Name: "string"
+  #     Email: "string"
+  #     Country: "string"
+  #     JoinDate: "date"
+  #
+  # Sales:
+  #   rows: 2000
+  #   columns:
+  #     SalesID: "int"
+  #     CustomerID: "int"
+  #     Amount: "decimal"
+  #     SaleDate: "date"
+  #     Status: "status"
+
+# Data type definitions for column generation
+data_types:
+  string: "Generic text data"
+  name: "Person names (first + last)"
+  first_name: "First names only"
+  last_name: "Last names only"
+  email: "Email addresses"
+  int: "Integers (0-100, or higher for amounts)"
+  decimal: "Floating point numbers"
+  price: "Price/cost values (10-10000)"
+  amount: "Financial amounts"
+  quantity: "Quantities (1-1000)"
+  percent: "Percentages (0-100)"
+  date: "Dates (past year)"
+  datetime: "Date and time"
+  category: "Categorical values (A,B,C, etc.)"
+  status: "Status values (Active, Inactive, etc.)"
+  bool: "Boolean values (true/false)"
+  city: "City names"
+  state: "US state abbreviations"
+  country: "Country names"
+  product: "Product names"
