@@ -67,7 +67,7 @@ It is built to be rules-first and auditable. Deterministic translation handles w
 | Apache Ossie export | Yes | One Ossie YAML semantic model per Tableau data source |
 | Assessment & reporting | Yes | Inventory, complexity scoring, readiness report, effort estimate, post-migration validation report |
 | Theme and branding | Yes | Client-driven theme suggestions (colour palettes, Power BI theme JSON) — see [section 23](#23-theme-and-branding-assistant) |
-| Row-level security | Detect and flag in v1 | See [section 24](#24-row-level-security-handling) |
+| Row-level security | Not generated (full access); detected and warned only | See [section 24](#24-row-level-security-handling) |
 | Tableau Prep flows | Later | Not in v1 |
 | Server administration (permissions, schedules, subscriptions) | Later | Inventory only in v1 |
 
@@ -567,19 +567,18 @@ Planned requirements (to be confirmed as implementation proceeds):
 | 2 | Volume and size | **One workbook per run.** Packaged workbooks can be **several GB**, so processing is streaming and disk-aware |
 | 3 | Power BI / Fabric workspace and service principal | Not available locally yet but can be arranged. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
 | 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports connect to the original sources by default (assumption to confirm) |
-| 5 | Row-level security | Detect and flag in v1; see [section 24](#24-row-level-security-handling). Awaiting confirmation |
+| 5 | Row-level security | **Full access:** all users see all rows, so no RLS roles are generated. The tool still detects user filters / `USERNAME()`-style logic and warns if any is found; see [section 24](#24-row-level-security-handling) |
 | 6 | LLM data policy | No restriction on formulas and metadata. All extracted content is stored as **definite YAML files** that the LLM tooling reads and writes. Row-level data is never sent |
 | 7 | Theme / naming standard | None fixed. The **theme is driven by user input** (for example a client name), with researched suggestions ([section 23](#23-theme-and-branding-assistant)) |
 | 8 | Date table | **One per PBIP**, inside its own semantic model; nothing shared between PBIPs or workbooks |
 
 ### Still open
 
-1. **Row-level security:** does any workbook use user filters or `USERNAME()` / `ISMEMBEROF()`? If so, should v1 translate them to Power BI RLS roles, or only flag them?
-2. **Output connections:** confirm that reports should reference the original source systems (with packaged-only data extracted into the output folder), and not a new central store.
-3. **Service principal:** who provides the Power BI / Fabric workspace and when? This gates data and visual parity checks.
-4. **Hardware limits:** how much disk and memory does the machine running multi-GB workbooks have?
-5. **Which sources hold the embedded data** in the large `.twbx` files (extracts vs. loose files)? This decides how the Parquet conversion is sized.
-6. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly?
+1. **Output connections:** confirm that reports should reference the original source systems (with packaged-only data extracted into the output folder), and not a new central store.
+2. **Service principal:** who provides the Power BI / Fabric workspace and when? This gates data and visual parity checks.
+3. **Hardware limits:** how much disk and memory does the machine running multi-GB workbooks have?
+4. **Which sources hold the embedded data** in the large `.twbx` files (extracts vs. loose files)? This decides how the Parquet conversion is sized.
+5. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly?
 
 ---
 
@@ -632,12 +631,11 @@ The theme is not fixed. It comes from the **user's input**, for example the clie
 
 **Row-level security (RLS)** restricts which rows of data each user can see. In Tableau it is usually implemented as a *user filter*, or a filter using functions such as `USERNAME()`, `FULLNAME()`, `USERDOMAIN()` or `ISMEMBEROF("group")`, in a calculation, a data-source filter or an entitlement table. In Power BI the equivalent is an **RLS role** with DAX filter expressions on tables (static or dynamic, using `USERPRINCIPALNAME()`), assigned to users or groups in the Power BI service.
 
-Because a wrong translation can expose data, the default in v1 is:
+**Decision: full access.** Every user of the migrated reports sees all rows, so the accelerator generates **no RLS roles** and the PBIP is produced without row-level restrictions.
 
-- **Detect** every use of user functions and user filters during parsing, and record it in `01_extracted/security.yaml`.
-- **Flag** it prominently in the assessment and mark the affected items `manual`.
-- **Do not auto-publish** anything that has RLS-flagged content.
-- Optionally, in a later phase, generate candidate RLS roles as `needs-review` items, validated by comparing visible rows for test users on both platforms.
+As a safety net the parser still **detects** user filters and user-function logic (`USERNAME()`, `FULLNAME()`, `USERDOMAIN()`, `ISMEMBEROF()`, entitlement tables) and records them in `01_extracted/security.yaml`. If any are found, the assessment shows a **warning** that the Tableau workbook restricted data but the Power BI output will not. The item is marked `manual`, so nobody publishes a less-restricted report by accident.
+
+If a future engagement needs RLS, candidate roles can be generated as `needs-review` items and validated by comparing visible rows for test users on both platforms. That is not planned for v1.
 
 ---
 
