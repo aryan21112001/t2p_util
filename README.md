@@ -30,9 +30,12 @@ It is built to be rules-first and auditable. Deterministic translation handles w
 18. [Prerequisites](#18-prerequisites)
 19. [Known limitations and risks](#19-known-limitations-and-risks)
 20. [Roadmap](#20-roadmap)
-21. [Open questions](#21-open-questions)
-22. [Contributing and license](#22-contributing-and-license)
-23. [References](#23-references)
+21. [Decisions log and open questions](#21-decisions-log-and-open-questions)
+22. [Large packaged workbooks and version support](#22-large-packaged-workbooks-and-version-support)
+23. [Theme and branding assistant](#23-theme-and-branding-assistant)
+24. [Row-level security handling](#24-row-level-security-handling)
+25. [Contributing and license](#25-contributing-and-license)
+26. [References](#26-references)
 
 ---
 
@@ -63,6 +66,8 @@ It is built to be rules-first and auditable. Deterministic translation handles w
 | Calculated fields | Yes | Row-level, aggregate, LOD, table calculations, parameters → DAX measures / columns / Power Query M |
 | Apache Ossie export | Yes | One Ossie YAML semantic model per Tableau data source |
 | Assessment & reporting | Yes | Inventory, complexity scoring, readiness report, effort estimate, post-migration validation report |
+| Theme and branding | Yes | Client-driven theme suggestions (colour palettes, Power BI theme JSON) — see [section 23](#23-theme-and-branding-assistant) |
+| Row-level security | Detect and flag in v1 | See [section 24](#24-row-level-security-handling) |
 | Tableau Prep flows | Later | Not in v1 |
 | Server administration (permissions, schedules, subscriptions) | Later | Inventory only in v1 |
 
@@ -119,6 +124,8 @@ Key design decision: **a typed intermediate representation (IR) sits between Tab
 - `.twb` is XML. `.twbx` is a zip containing the `.twb` plus packaged assets (extracts as `.hyper`, local files, images, custom shapes).
 - The parser reads datasources, columns, calculations, worksheets (shelves, marks, filters, encodings), dashboards (zones, containers, actions), parameters and formatting.
 - Needs no Tableau Server. Best for pilots, single workbooks and offline analysis.
+- **One workbook is processed per run.** Packaged workbooks may be several GB, so the pipeline streams from the zip and never loads a whole package into memory (see [section 22](#22-large-packaged-workbooks-and-version-support)).
+- **All Tableau versions are in scope.** The parser is version-aware and degrades gracefully on unknown XML (see section 22).
 
 ### 4.2 Tableau Server / Tableau Cloud
 
@@ -135,29 +142,46 @@ Workbooks that reference published data sources are resolved by downloading the 
 
 ## 5. Outputs
 
-For each migrated workbook the accelerator produces:
+Each run migrates **one workbook** and creates a **new, self-contained output folder** with a fixed structure. Nothing is written into the input location. Every PBIP is independent: it owns its own data sources, date table and theme, and shares nothing with other PBIPs.
 
 ```
-out/<workbook>/
-├── <workbook>.pbip                     # Power BI Project pointer file
-├── <workbook>.SemanticModel/           # TMDL semantic model
-│   └── definition/                     #   tables/, relationships, expressions, model
-├── <workbook>.Report/                  # Report definition (PBIR)
-│   └── definition/                     #   pages/, visuals/, bookmarks, report config
-├── ossie/
+out/<client>/<workbook>/
+├── run.yaml                            # Run manifest: inputs (with hashes), tool version, config, timings
+├── 01_extracted/                       # Tableau content as definite YAML (the IR; see below)
+│   ├── workbook.yaml
+│   ├── datasources/<datasource>.yaml
+│   ├── calculations/<datasource>.yaml
+│   ├── parameters.yaml
+│   ├── worksheets/<worksheet>.yaml
+│   ├── dashboards/<dashboard>.yaml
+│   └── security.yaml                   # Detected RLS / user filters (flag only in v1)
+├── 02_assessment/                      # Inventory, complexity, readiness (md/html/yaml)
+├── 03_translation/                     # Per-item translation records as YAML + calculations.csv
+│   ├── calculations.yaml               # formula, classification, DAX, Ossie SQL, method, confidence, status
+│   ├── model.yaml
+│   └── visuals.yaml
+├── 04_powerbi/                         # The deliverable Power BI Project
+│   ├── <workbook>.pbip                 # Project pointer file
+│   ├── <workbook>.SemanticModel/       # TMDL semantic model (incl. its own date table)
+│   │   └── definition/                 #   tables/, relationships, expressions, model
+│   ├── <workbook>.Report/              # Report definition (PBIR)
+│   │   └── definition/                 #   pages/, visuals/, bookmarks, report config
+│   ├── themes/                         # Selected Power BI theme JSON (see section 23)
+│   └── data/                           # Extracted packaged data (Parquet/CSV) where needed
+├── 05_ossie/
 │   └── <datasource>.ossie.yaml         # Apache Ossie semantic model (one per data source)
-├── data/                               # Extracted packaged data (Parquet/CSV) where needed
-├── review/
-│   ├── calculations.csv                # Tableau formula, DAX, status, confidence, notes
+├── 06_validation/                      # DAX/model checks, data parity, visual parity results
+├── 07_review/
 │   ├── review-queue.md                 # Items needing human attention
-│   └── mapping.json                    # Tableau object → Power BI object trace
-└── reports/
-    ├── assessment.md|html
-    ├── translation-coverage.md|html
-    └── validation.md|html
+│   ├── decisions.yaml                  # Reviewer decisions and sign-off trail
+│   └── mapping.yaml                    # Tableau object → Power BI object trace
+└── logs/
 ```
 
 Notes:
+
+- **Everything that is extracted is stored as definite, schema-checked YAML.** The YAML files are the single source of truth between stages: they can be inspected, diffed, hand-edited and re-fed to later stages, and they are what the LLM tooling reads and writes.
+- **Assumption to confirm:** reports connect to the **original source systems** by default (connections are parameterised in Power Query), while data that only exists inside the `.twbx` package is extracted into `04_powerbi/data/`. Repointing to a new location (e.g. a lakehouse) is a parameter change, not a rebuild.
 
 - PBIP is the target because it is plain text, Git-friendly and can be generated as code. Verify the current status of the PBIR report format against Microsoft's documentation before relying on it; the generator should be able to fall back to the legacy report format if needed.
 - `.ossie.yaml` is a **project naming convention**, not something the Ossie spec mandates.
@@ -254,7 +278,7 @@ Calculations are also written into the semantic model with their original Tablea
 - **Custom SQL.** Carried across as native queries, with a warning about query folding and dialect portability.
 - **Embedded data in `.twbx`.** Power BI cannot read Tableau `.hyper` files directly. The pipeline extracts `.hyper` content using the Tableau Hyper API, writes **Parquet (or CSV)**, and generates M that points at those files. Loose Excel / CSV files packaged in the `.twbx` are handled the same way. The extracted files are written under `data/` and referenced by a parameterised folder path.
 - **Extracts vs. live.** Extract refresh schedules are not migrated; the report lists them so Power BI refresh can be configured.
-- **Date handling.** The accelerator can generate a shared date table and mark it as a date table, since most time-intelligence patterns in DAX depend on one.
+- **Date handling.** Each PBIP gets **its own date table**, generated inside its semantic model and marked as a date table, since most time-intelligence patterns in DAX depend on one. Nothing is shared across PBIP projects or across Tableau workbooks.
 - **Hierarchies, folders, formats, default aggregations, sort-by columns, descriptions** are carried over where Power BI has an equivalent.
 
 ---
@@ -353,7 +377,7 @@ Principles:
 - **Verified outputs.** Generated DAX must pass the syntax / semantic checks in [section 13](#13-validation) before it is written into the model. Failures are retried with the error message, then escalated to `manual`.
 - **No hard-coded model.** The model is selected by configuration (`T2P_LLM_MODEL`); the repository does not pin a model ID.
 - **Fully usable without an LLM.** With the LLM disabled, unmapped items become `manual` entries with the original formula and a TODO, so the tool still runs offline.
-- **Data minimisation.** Only formulas and schema metadata are sent, never row-level data. A `--no-llm` flag and a redaction option for table / column names are planned.
+- **Data policy.** There is no restriction on sending formulas and metadata to the LLM, and the LLM tooling reads and writes the extracted YAML files directly. Row-level data is still never sent: only formulas, schema and other metadata. A `--no-llm` flag and an optional redaction setting for table / column names remain available for stricter clients.
 
 ---
 
@@ -453,6 +477,8 @@ Configuration is a YAML file plus environment variables. Secrets are only ever r
 | `ANTHROPIC_API_KEY` | Claude API access (only if LLM assistance is enabled) |
 | `T2P_LLM_MODEL` | Which Claude model to use; deliberately not hard-coded |
 | `T2P_LLM_ENABLED` | Enable / disable LLM fallback |
+| `T2P_CLIENT` | Client name; used for the output folder and for theme research (section 23) |
+| `T2P_WORK_DIR` | Scratch location for unpacking large `.twbx` files (needs room for the extracted data) |
 | `PBI_TENANT_ID`, `PBI_CLIENT_ID`, `PBI_CLIENT_SECRET` | Power BI / Fabric service principal for validation and optional publish |
 | `t2p.yaml` | Connector mappings, complexity weights, naming conventions, override rules, type mappings |
 
@@ -473,6 +499,7 @@ t2p_util/
 │   │   ├── model/       # connections, joins, relationships → M / TMDL
 │   │   └── visual/      # worksheets/dashboards → report definition
 │   ├── llm/             # Claude fallback, prompts, guardrails
+│   ├── theme/           # brand research, palette suggestion, theme JSON, contrast checks
 │   ├── emit/            # PBIP, TMDL, report JSON, Ossie YAML, Parquet extraction
 │   ├── validate/        # DAX checks, parity, visual diff
 │   └── cli/
@@ -523,28 +550,98 @@ Planned requirements (to be confirmed as implementation proceeds):
 | **4. Ossie export** | Per-data-source Ossie YAML with schema validation |
 | **5. Advanced calcs** | LOD and table-calculation translation, LLM fallback with review gating |
 | **6. Visuals** | Worksheet → visual and dashboard → page mapping, filters, parameters, actions |
+| **6b. Theme assistant** | Client-driven palette research and Power BI theme generation (section 23) |
 | **7. Server / Cloud** | REST + Metadata API ingest; portfolio-level assessment |
 | **8. Validation** | DAX / model checks, data parity, visual parity, review workflow and sign-off reports |
 | **9. Later** | Tableau Prep flows, publishing to Fabric, permissions mapping, additional connectors |
 
 ---
 
-## 21. Open questions
+## 21. Decisions log and open questions
 
-These are open and will shape the implementation:
+### Decisions
 
-1. Which Tableau versions must be supported (workbook XML differs between versions)?
-2. Expected workbook volume and size (affects batching, parallelism and cost of LLM use)?
-3. Is a target Power BI / Fabric workspace and a service principal available for validation and publishing?
-4. Should migrated reports connect to the **original source systems**, or to a new location (e.g. Fabric lakehouse)?
-5. How should Tableau row-level security (user filters, entitlements) be handled in v1: flag only, or translate to Power BI RLS?
-6. Are there data-residency or policy limits on sending formulas and metadata to an external LLM?
-7. Is there a corporate Power BI theme or naming standard to apply to generated models and reports?
-8. Is a shared date table acceptable as a default?
+| # | Question | Decision |
+|---|---|---|
+| 1 | Tableau versions | **All versions** are in scope (see [section 22](#22-large-packaged-workbooks-and-version-support)) |
+| 2 | Volume and size | **One workbook per run.** Packaged workbooks can be **several GB**, so processing is streaming and disk-aware |
+| 3 | Power BI / Fabric workspace and service principal | Not available locally yet but can be arranged. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
+| 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports connect to the original sources by default (assumption to confirm) |
+| 5 | Row-level security | Detect and flag in v1; see [section 24](#24-row-level-security-handling). Awaiting confirmation |
+| 6 | LLM data policy | No restriction on formulas and metadata. All extracted content is stored as **definite YAML files** that the LLM tooling reads and writes. Row-level data is never sent |
+| 7 | Theme / naming standard | None fixed. The **theme is driven by user input** (for example a client name), with researched suggestions ([section 23](#23-theme-and-branding-assistant)) |
+| 8 | Date table | **One per PBIP**, inside its own semantic model; nothing shared between PBIPs or workbooks |
+
+### Still open
+
+1. **Row-level security:** does any workbook use user filters or `USERNAME()` / `ISMEMBEROF()`? If so, should v1 translate them to Power BI RLS roles, or only flag them?
+2. **Output connections:** confirm that reports should reference the original source systems (with packaged-only data extracted into the output folder), and not a new central store.
+3. **Service principal:** who provides the Power BI / Fabric workspace and when? This gates data and visual parity checks.
+4. **Hardware limits:** how much disk and memory does the machine running multi-GB workbooks have?
+5. **Which sources hold the embedded data** in the large `.twbx` files (extracts vs. loose files)? This decides how the Parquet conversion is sized.
+6. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly?
 
 ---
 
-## 22. Contributing and license
+## 22. Large packaged workbooks and version support
+
+### 22.1 Multi-GB `.twbx` files
+
+A `.twbx` is a zip. In multi-GB packages almost all of the size is packaged data (`.hyper` extracts and files), not the workbook definition.
+
+- **Definition first.** Only the `.twb` XML (typically a few MB at most) is read for analysis, assessment, calculation translation and visual translation. This is done by streaming directly from the zip, without unpacking everything.
+- **Data on demand.** Packaged data is only unpacked when the data stage runs, into `T2P_WORK_DIR`, one table at a time, and converted to Parquet in chunks, so memory stays bounded.
+- **Disk pre-check.** Before unpacking, the tool reports the expected disk need and refuses to start if there is not enough space.
+- **Resumable.** The run manifest (`run.yaml`) records completed stages and file hashes, so an interrupted run resumes and does not repeat finished work.
+- **Skip or defer data.** `--no-data` produces the model, calculations and report without extracting packaged data, which is useful for quick iterations on big files.
+- **Very large extracts** may be better re-sourced from the original system than copied into Parquet; the assessment flags these.
+
+### 22.2 All Tableau versions
+
+Tableau workbook XML has changed across releases (for example `.tds`/`.twb` structure, the introduction of the relationships/logical layer in newer versions, and `.hyper` replacing `.tde` extracts).
+
+- The parser reads the workbook's declared version attributes and selects version-specific handling.
+- Older workbooks that use the legacy physical-layer-only data model, `.tde` extracts or deprecated features are supported on a best-effort basis. `.tde` extracts cannot be read directly and will need re-extraction or re-sourcing; they are flagged.
+- **Unknown or unsupported XML is never dropped silently.** It is preserved in the extracted YAML as raw nodes and listed in the assessment as "unparsed".
+- A **fixture corpus** of synthetic workbooks across versions is part of the test suite. The real version range actually supported will be stated in the release notes, backed by those tests, since "all versions" can only be claimed for what has been tested.
+
+---
+
+## 23. Theme and branding assistant
+
+The theme is not fixed. It comes from the **user's input**, for example the client's name.
+
+### 23.1 Flow
+
+1. The user supplies a client or brand name (and optionally brand guideline documents, logo files or hex colours).
+2. The assistant researches the publicly available brand identity of that client: primary and secondary colours, typography and tone.
+3. It proposes **several candidate themes** (for example a primary-brand theme, a neutral/light theme and a dark theme), each with a categorical palette, a sequential and a diverging palette, background, foreground and accent colours.
+4. Each candidate is checked for **accessibility** (WCAG contrast ratios for text and data labels) and for **colour-blind safety** of the categorical palette. Colours that fail are adjusted, and the adjustment is reported.
+5. The user previews and picks one (or edits it). The choice is recorded.
+6. The assistant emits a **Power BI theme JSON** (`04_powerbi/themes/`) and applies it to the report definition. The chosen palette and its rationale are stored as YAML in `07_review/decisions.yaml`.
+
+### 23.2 Notes
+
+- The research uses public information, and the output is a **suggestion**. Official brand guidelines supplied by the client always override researched values.
+- Brand logos, wordmarks and trademarked assets are **not** generated or embedded unless the client supplies them.
+- Without network access or a brand name, a neutral default theme is used.
+
+---
+
+## 24. Row-level security handling
+
+**Row-level security (RLS)** restricts which rows of data each user can see. In Tableau it is usually implemented as a *user filter*, or a filter using functions such as `USERNAME()`, `FULLNAME()`, `USERDOMAIN()` or `ISMEMBEROF("group")`, in a calculation, a data-source filter or an entitlement table. In Power BI the equivalent is an **RLS role** with DAX filter expressions on tables (static or dynamic, using `USERPRINCIPALNAME()`), assigned to users or groups in the Power BI service.
+
+Because a wrong translation can expose data, the default in v1 is:
+
+- **Detect** every use of user functions and user filters during parsing, and record it in `01_extracted/security.yaml`.
+- **Flag** it prominently in the assessment and mark the affected items `manual`.
+- **Do not auto-publish** anything that has RLS-flagged content.
+- Optionally, in a later phase, generate candidate RLS roles as `needs-review` items, validated by comparing visible rows for test users on both platforms.
+
+---
+
+## 25. Contributing and license
 
 The project is at the design stage. Issues and proposals are welcome. A license has not yet been chosen; one will be added before the first release.
 
@@ -552,7 +649,7 @@ Contributor guidelines (test requirements for every new mapping rule, fixture po
 
 ---
 
-## 23. References
+## 26. References
 
 - Apache Ossie (formerly Open Semantic Interchange): <https://ossie.apache.org/> and <https://github.com/apache/ossie> (spec in `core-spec/`)
 - Power BI Projects (PBIP), TMDL and the enhanced report format (PBIR): <https://learn.microsoft.com/en-us/power-bi/developer/embedded/projects-enhanced-report-format>
