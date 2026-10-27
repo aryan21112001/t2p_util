@@ -20,6 +20,7 @@ PROBE="$PIPE/.claude/skills/build-tableau-pbip/tests/Synthetic Coverage Probe.tw
 ORCH="$PIPE/tools/agents/implementation/orchestrator"
 export PYTHONDONTWRITEBYTECODE=1
 PY="${PYTHON:-python3}"
+export PIPE
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/t2p_smoke.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 FAILS=0
@@ -78,6 +79,31 @@ need "Agent 4: VALIDATION_SUMMARY.json"          "$WORK/basic" 'VALIDATION_SUMMA
 grep -q 'Pipeline Result' "$WORK/dummy.log" && ok "dummy-data orchestrator ran to completion" || { bad "dummy-data orchestrator did not finish"; tail -8 "$WORK/dummy.log" | sed 's/^/        /'; }
 need "Agent 2: generated data workbook (.xlsx)"  "$WORK/dummy" '*_dummy_data.xlsx'
 need "Agent 4: VALIDATION_SUMMARY.json (with data)" "$WORK/dummy" 'VALIDATION_SUMMARY.json'
+
+echo "== 4. Hyper-to-CSV helper (needs tableauhyperapi) =="
+if "$PY" -c "import tableauhyperapi" 2>/dev/null; then
+  "$PY" - "$WORK" <<'PYEOF'
+import sys, csv, subprocess, os, datetime
+from tableauhyperapi import HyperProcess, Telemetry, Connection, CreateMode, TableDefinition, SqlType, TableName, Inserter, NULLABLE
+work = sys.argv[1]; hy = os.path.join(work, "t.hyper"); out = os.path.join(work, "t.csv")
+with HyperProcess(Telemetry.DO_NOT_SEND_USAGE_DATA_TO_TABLEAU) as h:
+    with Connection(h.endpoint, hy, CreateMode.CREATE_AND_REPLACE) as c:
+        c.catalog.create_schema("Extract")
+        t = TableDefinition(TableName("Extract", "Extract"), [
+            TableDefinition.Column("Name, x", SqlType.text(), NULLABLE), TableDefinition.Column("N", SqlType.big_int(), NULLABLE)])
+        c.catalog.create_table(t)
+        with Inserter(c, t) as i:
+            i.add_rows([('a "q", b', 1), (None, None)]); i.execute()
+tool = os.path.join(os.environ["PIPE"], "tools", "data-prep", "hyper_to_csv.py")
+r = subprocess.run([sys.executable, tool, hy, "-o", out], capture_output=True, text=True)
+assert r.returncode == 0, r.stderr
+rows = list(csv.reader(open(out, newline="", encoding="utf-8")))
+assert rows == [["Name, x", "N"], ['a "q", b', "1"], ["", ""]], rows
+PYEOF
+  [ $? -eq 0 ] && ok "hyper_to_csv.py round-trips quotes, commas and NULLs" || bad "hyper_to_csv.py"
+else
+  skip "tableauhyperapi not installed"
+fi
 
 echo
 if [ $FAILS -eq 0 ]; then echo "SMOKE TEST PASSED"; exit 0; else echo "SMOKE TEST FAILED ($FAILS problem(s))"; exit 1; fi
