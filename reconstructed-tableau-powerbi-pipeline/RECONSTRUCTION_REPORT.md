@@ -40,7 +40,7 @@ Empty directories were created for implementation areas that have no Markdown fi
 - `tools/agents/implementation/agent-3-realistic-data/`
 - `tools/agents/implementation/orchestrator/`
 
-(Git does not track empty directories, so these exist only on disk until a file is added.)
+Git does not track empty directories, so each of these four contains one empty `.gitkeep` placeholder so that the folders exist on GitHub. A `.gitkeep` is not a source document, script, config, test, dependency or instruction file and holds no content; delete it when the real implementation files are added.
 
 ## Described by the documents but not contained in the inputs
 
