@@ -82,7 +82,8 @@ need "Agent 4: VALIDATION_SUMMARY.json (with data)" "$WORK/dummy" 'VALIDATION_SU
 
 echo "== 4. Hyper-to-CSV helper (needs tableauhyperapi) =="
 if "$PY" -c "import tableauhyperapi" 2>/dev/null; then
-  "$PY" - "$WORK" <<'PYEOF'
+  # run from the temp folder: the Hyper engine writes a hyperd.log into the current directory
+  ( cd "$WORK" && "$PY" - "$WORK" <<'PYEOF'
 import sys, csv, subprocess, os, datetime
 from tableauhyperapi import HyperProcess, Telemetry, Connection, CreateMode, TableDefinition, SqlType, TableName, Inserter, NULLABLE
 work = sys.argv[1]; hy = os.path.join(work, "t.hyper"); out = os.path.join(work, "t.csv")
@@ -100,6 +101,7 @@ assert r.returncode == 0, r.stderr
 rows = list(csv.reader(open(out, newline="", encoding="utf-8")))
 assert rows == [["Name, x", "N"], ['a "q", b', "1"], ["", ""]], rows
 PYEOF
+  )
   [ $? -eq 0 ] && ok "hyper_to_csv.py round-trips quotes, commas and NULLs" || bad "hyper_to_csv.py"
 else
   skip "tableauhyperapi not installed"
