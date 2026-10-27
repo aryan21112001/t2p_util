@@ -517,7 +517,7 @@ def check_calc_dependency_cycles(f, project: str, proj: M.Project) -> None:
         graph[node] = deps
 
     # Iterative depth-first search with an explicit colour map; recursion would overflow on
-    # the deeper corpus models (Prevent Dashboard carries 262 calculated objects).
+    # the deeper corpus models (WorkbookB Dashboard carries 262 calculated objects).
     WHITE, GREY, BLACK = 0, 1, 2
     colour: dict[tuple[str, str], int] = {}
     reported: set[frozenset] = set()
@@ -1131,7 +1131,7 @@ def check_visual_position(f, project: str, proj: M.Project) -> None:
 def check_page_dimensions_integer(f, project: str, proj: M.Project) -> None:
     """RPT-POS-02. page.json's width/height must be whole numbers.
 
-    Confirmed on a real corpus workbook (GCLM): a layout pass computed a page height with
+    Confirmed on a real corpus workbook (WorkbookA): a layout pass computed a page height with
     `round(x, 2)`, producing e.g. `1406.01`. Desktop's Export-to-PDF path deserializes
     `Sections[0].Height` as an integer and crashes outright --
     `Newtonsoft.Json.JsonReaderException: Input string '1406.01' is not a valid integer.
@@ -1159,7 +1159,7 @@ _SLIVER_AREA_RATIO = 0.3
 def check_visual_sliver_overlap(f, project: str, proj: M.Project) -> None:
     """RPT-POS-03. Sibling visuals must not sliver-overlap.
 
-    Confirmed on a real corpus workbook (GCLM, Acquisition page): a `tableEx` 'Prod Id' list
+    Confirmed on a real corpus workbook (WorkbookA, Acquisition page): a `tableEx` 'Prod Id' list
     and a `barChart` 'Issuer YoY Growth' overlapped by 7.8px of a shared 322px-tall edge,
     inherited unchanged from the source `.twb`'s own zone x/y/w/h. Desktop's PDF export
     rendered the chart's title clipped: "ssuer - YoY Growth" (the leading "I" cut off).
@@ -1215,7 +1215,7 @@ _MIN_CHART_HEIGHT = 120.0
 def check_chart_minimum_height(f, project: str, proj: M.Project) -> None:
     """RPT-POS-04. A chart-type visual under the minimum usable plot-area height.
 
-    Confirmed on a real corpus workbook (GCLM, Usage Deepdive page): several bar/line charts
+    Confirmed on a real corpus workbook (WorkbookA, Usage Deepdive page): several bar/line charts
     were emitted at icon scale (well under 120px tall) -- small enough that Desktop renders
     them as an unreadable mini-icon with no visible axis or data, even though the underlying
     query is correct and populated.

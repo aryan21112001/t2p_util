@@ -24,12 +24,12 @@ one — reported in `RESIDUE.md`, never silently dropped. **Status:** ✅ Fixed,
 `_resolve_field`'s filter call site never passed a table hint to `by_spelling` at all — the exact
 global-first-match hazard `names.py`'s own fix (see `03-name-authority-gotchas.md`) already
 named for CALC resolution, recurring independently because that fix never touched this call site.
-Real corpus (GCLM): Activation's own filter on `For View = "Trend"` resolved to
+Real corpus (WorkbookA): Activation's own filter on `For View = "Trend"` resolved to
 `Recommendations[For View]` instead — matched ZERO of 247,425 real rows, blanking every visual
 that filtered through it. 281 real filter sites hit this for one caption alone, across 6 pages.
 **Fix:** `_resolve_field` gained a `candidate_tables` parameter (`_visual_filters` passes the
 visual's own `query_entities`), tried in order as the PREFERRED table before the old global-only
-fallback. **Status:** ✅ Fixed (found on GCLM). **Not sufficient alone** — see
+fallback. **Status:** ✅ Fixed (found on WorkbookA). **Not sufficient alone** — see
 `02-extraction-gotchas.md`'s `name_map` backfill fix, found immediately after verifying THIS fix
 live and discovering the right table still didn't have a matching NAME for the field. Both are
 needed together any time the same caption exists across 2+ datasources with inconsistent
@@ -42,7 +42,7 @@ FILTER's own field. `_query_state` — the method that resolves a worksheet's OW
 Tooltip/Text-shelf fields, i.e. the visual's primary data binding, not just its filters — called
 `_resolve_field` with NO table hint anywhere, at all three of its own call sites. A worksheet's
 Category/axis field is just as exposed to the SAME caption-collision hazard as a filter's field;
-nothing before this fix protected it. Real corpus (GCLM), confirmed live: fixing
+nothing before this fix protected it. Real corpus (WorkbookA), confirmed live: fixing
 `extract.py`'s own caption gap (see `02-extraction-gotchas.md`) widened the caption "Prod Id" to 5
 tables at once; "2.3 Issuer YoY Growth"'s barChart then resolved its Category field to
 `Activation.Prod Id` (global first-match) while its Y measure stayed on `Acquisition.Issuer - YoY
@@ -69,7 +69,7 @@ fixes only ever threaded `candidate_tables` into `_resolve_field`'s NON-agg bran
 by ANY truthy aggregation code, not just `SUM`/`AVG` shelf-measure lookups, critically including
 Tableau's `ATTR()` wrapper (`agg="attr"`), the common case for a plain dimension dropped on
 Tooltip/Color/Text — called `self.na.by_spelling(field, emitted_only=True)` with NO table hint
-at all, unconditionally. Real corpus (GCLM): `_query_state`'s own `anchor_tables` correctly held
+at all, unconditionally. Real corpus (WorkbookA): `_query_state`'s own `anchor_tables` correctly held
 `("Acquisition",)` for "2.3 Issuer YoY Growth"'s barChart (confirmed via the SAME worksheet's Y
 measure resolving correctly) — the chart's Tooltip field (`Issr`, `agg="attr"`) STILL resolved to
 `Recommendations.Issr` instead, because the agg branch never consulted `anchor_tables` in the
@@ -90,7 +90,7 @@ The `anchor_tables` mechanism (see the two `_query_state` entries above) is seed
 measures found in a worksheet's own encodings — a worksheet that is a pure dimension/label
 display (e.g. "show this view's own `Ctry` as text," no measure on any shelf at all) gives that
 scan nothing to find, so `anchor_tables` stays `()` and every field in it falls straight through
-to the unscoped global fallback regardless of any of the fixes above. Real corpus (GCLM): 98 of
+to the unscoped global fallback regardless of any of the fixes above. Real corpus (WorkbookA): 98 of
 382 worksheets have this zero-measure shape; confirmed on `Mkt_acti`'s own `Ctry` field (`agg:
 None`, the ONLY encoding on the whole worksheet) landing on `Recommendations.Ctry` instead of
 `Activation.Ctry`. **Fix:** `extract.py`'s `extract_worksheets()` now captures each worksheet's

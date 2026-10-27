@@ -11,7 +11,7 @@ description: >
   Desktop's DAX query view, plus a commented gaps section (reason + suggested fix) for everything
   declined. Every Tableau formula and DAX expression shown anywhere in the report is dereferenced
   first: an opaque internal identity -- `[Parameters].[Parameter 15]`, or an auto-suffixed
-  duplicate field like `[Visa Countryregion C (copy)_739153350486216704]` -- is rewritten to its
+  duplicate field like `[Sample Countryregion C (copy)_739153350486216704]` -- is rewritten to its
   real caption (`[Region - Parameter]`, `[Region]`) straight from ir.json, never guessed; every
   identifier actually substituted is recorded in the Identifier Map sheet, and every parameter's
   own raw identity + real domain values live in the Parameters sheet. "Mapped" is not the

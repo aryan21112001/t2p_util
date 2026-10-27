@@ -310,7 +310,7 @@ def preflight(root, model_dir, report_dir, na):
 
     # Same rule, the BARE `[Name]` shape. Measures are unique model-wide (names.py's own contract),
     # so a bare reference that matches ANY measure anywhere is a violation regardless of which table
-    # the calculated column lives in. Missing this let a real workbook (Prevent Dashboard) emit
+    # the calculated column lives in. Missing this let a real workbook (WorkbookB Dashboard) emit
     # 'cl.Is Selected Slice By?' as a calculated COLUMN referencing a parameter's SELECTEDVALUE
     # measure via the bare form `resolve_param` always uses -- the qualified-only check above never
     # saw it, the model loaded, and every report filter on that column failed in Desktop with
@@ -665,7 +665,7 @@ def _literal_plus_hits(model_dir):
     DAX's `+` is always arithmetic; a literal string on either side means the ORIGINAL Tableau
     formula used `+` for concatenation, which `dax.py`'s `add_expr` now always rewrites to `&`.
     This shape should therefore never appear in emitted DAX -- if it does, that rewrite regressed.
-    Confirmed on a real workbook (Prevent Dashboard): `COALESCE(a, "") + "|" + COALESCE(b, "")`
+    Confirmed on a real workbook (WorkbookB Dashboard): `COALESCE(a, "") + "|" + COALESCE(b, "")`
     loaded and built fine, then failed at QUERY TIME on the first visual that evaluated it --
     "Cannot convert value '' of type Text to type Numeric/Date" -- invisible to every check that
     only looks at whether the DAX is syntactically valid, since `+` between text and a number IS

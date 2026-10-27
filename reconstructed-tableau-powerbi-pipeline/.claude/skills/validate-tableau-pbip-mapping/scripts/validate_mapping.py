@@ -468,7 +468,7 @@ def _na_key(caption, tableau_name):
 # ================================================= identifier dereferencing
 # Tableau formulas reference other objects by opaque internal identity, not by the caption a
 # Tableau user actually sees: `[Parameters].[Parameter 15]` for a parameter, or
-# `[Visa Countryregion C (copy)_739153350486216704]` for a field Tableau auto-suffixed with a
+# `[Sample Countryregion C (copy)_739153350486216704]` for a field Tableau auto-suffixed with a
 # generated id (duplicated/"(copy)" fields get this). Both identities, and their real captions,
 # already exist in ir.json -- this is a lookup, not an inference, so it stays fail-closed: an
 # identity this workbook does not define is left exactly as written, never guessed at.
@@ -720,7 +720,7 @@ def build_mapping(ir, na, residue, dax_by_table, names_by_table=None, all_measur
                 # leftover residue pass below re-walks residue.json directly and, without this,
                 # double-reports anything that started in residue.json but was LATER promoted
                 # (e.g. by promote_dax_candidates.py) as both mapped AND still a gap. Caught by
-                # promoting Prevent Dashboard's 29 authored candidates: every one of them kept
+                # promoting WorkbookB Dashboard's 29 authored candidates: every one of them kept
                 # showing up in the Gaps sheet even after correctly appearing in Measures/Columns,
                 # because only the gap-outcome branch used to add to this set.
                 consumed_residue.add((pbi_table, calc["name"]))
@@ -1119,20 +1119,20 @@ if __name__ == "__main__":
             "parameters": [{"name": "Region - Parameter", "tableau_name": "[Parameter 15]"}],
             "tables": [{"caption": "Data", "tableau_name": "Data", "calcs": [
                 {"name": "Region",
-                 "tableau_name": "[Visa Countryregion C (copy)_739153350486216704]"}],
+                 "tableau_name": "[Sample Countryregion C (copy)_739153350486216704]"}],
                 "columns": []}],
         }
         imap = build_identity_map(test_ir)
         assert imap["Parameter 15"] == {"caption": "Region - Parameter", "kind": "parameter",
                                          "table": ""}
-        assert imap["Visa Countryregion C (copy)_739153350486216704"]["caption"] == "Region"
+        assert imap["Sample Countryregion C (copy)_739153350486216704"]["caption"] == "Region"
 
         usage = collections.Counter()
         out = dereference_formula(
-            "[Parameters].[Parameter 15] = [Visa Countryregion C (copy)_739153350486216704] "
+            "[Parameters].[Parameter 15] = [Sample Countryregion C (copy)_739153350486216704] "
             "OR [Parameters].[Parameter 15]= 'Global'", imap, usage)
         assert out == "[Region - Parameter] = [Region] OR [Region - Parameter]= 'Global'", out
-        assert usage["Parameter 15"] == 2 and usage["Visa Countryregion C (copy)_739153350486216704"] == 1
+        assert usage["Parameter 15"] == 2 and usage["Sample Countryregion C (copy)_739153350486216704"] == 1
 
         # an identity this workbook doesn't define is left exactly as written -- fail closed.
         assert dereference_formula("[Parameters].[Parameter 99]", imap) == "[Parameters].[Parameter 99]"

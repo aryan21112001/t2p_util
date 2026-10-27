@@ -277,7 +277,7 @@ def _calc_column(pbi, name, expr, summarize, dtype=None, folder=None, format_str
 
     `dtype`, when given, emits an explicit `dataType:`. Desktop itself omits this for a calculated
     column (confirmed against docs/examples/GroundTruth) -- but that example is never the target
-    of a report filter. A real workbook (Prevent Dashboard) that DOES filter a calculated boolean
+    of a report filter. A real workbook (WorkbookB Dashboard) that DOES filter a calculated boolean
     column ('cl.Is Selected Slice By?') failed to load with "Broken_Filters": every OTHER filtered
     column in that same report is a plain source column (always has an explicit dataType) and
     loaded fine, so a calculated column's dataType being left for the engine to infer is the one
@@ -421,8 +421,8 @@ def _formula_shape(formula):
     comparison (`TmdlModel._shared_columns`). Two columns sharing a name/dataType across two
     blended tables are Tableau's ONLY signal for a blend key (see `_relationships`'s docstring
     -- there is no stored linking-field), but a shared name says nothing about whether the two
-    sides compute the value the SAME way. Real corpus regression (GCLM_EU_GERMANY_COMMERZBANK_
-    AG_v2): `Acquisition.'Quarter Year'` = `[quarter]+" "+STR([year_nm])` (e.g. "Q3 2025"),
+    sides compute the value the SAME way. Real corpus regression (WorkbookA_
+    v2): `Acquisition.'Quarter Year'` = `[quarter]+" "+STR([year_nm])` (e.g. "Q3 2025"),
     `Activation.'Quarter Year'` = bare `[qtr]` (e.g. "Apr25-Jun25") -- same name, same dataType
     (string), but the two strings never equal each other for any real row, so the many-to-many
     relationship built on them can never produce a matching row. Neither side's formula is
@@ -511,7 +511,7 @@ class TmdlModel:
         `_resolver`) always points at the parameter's SELECTEDVALUE MEASURE, never its raw column
         -- so `[Parameters].[X]` in a calc's formula makes that calc a measure-referencer exactly
         like `SUM(...)` does, even though the formula has no aggregate function and Tableau itself
-        would call the calc a plain dimension. Missing this is what let a real workbook (Prevent
+        would call the calc a plain dimension. Missing this is what let a real workbook (WorkbookB
         Dashboard) emit `cl.Is Selected Slice By?` as a calculated COLUMN whose DAX referenced a
         parameter's measure: the model loaded (no preflight check saw it, because the existing
         column-references-measure check only matches the QUALIFIED 'Table'[Column] shape, and a
@@ -540,7 +540,7 @@ class TmdlModel:
         and if the referenced one gets promoted to a measure by THIS fixpoint (e.g. because its
         formula reads `[Parameters].[...]`), the referencing calc must be promoted too or it
         emits a calculated COLUMN referencing a MEASURE on a *sibling* table -- Desktop rejects
-        this at load. Confirmed on a real workbook (Prevent Dashboard): `cl.Rolling 7 Day Start -
+        this at load. Confirmed on a real workbook (WorkbookB Dashboard): `cl.Rolling 7 Day Start -
         Deflection Settled` (table `Insights`) references `cl.Current Period - End Date` (table
         `Currencies`, promoted for exactly the parameter reason above); the same-table-only
         version of this fixpoint could not see the cross-table dependency and 25 calcs reached
@@ -614,7 +614,7 @@ class TmdlModel:
         "cl.Slice By" bug: a branch-selection formula picking between whole COLUMNS by name) -- it
         is WRONG for a value Tableau's own shelf usage already wraps in SUM/AVERAGE, because a
         bare row-level column has many distinct real values across the table, and SELECTEDVALUE
-        returns BLANK whenever more than one exists. Real corpus (GCLM): `Penetration` --
+        returns BLANK whenever more than one exists. Real corpus (WorkbookA): `Penetration` --
         formula `(IF [Parameters].[Opcert or User Input]="Opcert" THEN [issr_cif_cy] ... END) /
         [Parameters].[Retail Customers]`, promoted to a measure purely by the parameter division,
         shelf-used as `SUM(Penetration)` on its own worksheet -- emitted as
@@ -800,8 +800,8 @@ class TmdlModel:
         # dax.py's Parser already declines/casts this exact shape for an explicit calc formula
         # (see its SUM/AVERAGE-of-string-field branch) -- real corpus regression there was this
         # SAME column, `issr_total_actv_crd_cy` (string in Activation, double in Key Highlights):
-        # GCLM's own `Activation Rate_issr` hit "AVERAGEX cannot work with values of type String"
-        # before that fix. This implicit-shelf-measure path was never covered by it: a GCLM
+        # WorkbookA's own `Activation Rate_issr` hit "AVERAGEX cannot work with values of type String"
+        # before that fix. This implicit-shelf-measure path was never covered by it: a WorkbookA
         # realistic-data run emitted `SUM('Activation'[issr_total_actv_crd_cy])` straight to TMDL,
         # which loads cleanly (no load-time error) but hard-errors every card/visual that uses it
         # at QUERY time ("The function SUM cannot work with values of type String") -- confirmed
@@ -957,7 +957,7 @@ class TmdlModel:
             and Desktop rejects it at evaluation time: "A single value for column '...' cannot be
             determined... This can happen when a measure or function formula refers to a column
             that contains many values without specifying an aggregation." Confirmed on a real
-            workbook (Prevent Dashboard, `cl.Slice By`): promoting it to a measure (to fix the
+            workbook (WorkbookB Dashboard, `cl.Slice By`): promoting it to a measure (to fix the
             EARLIER column-references-a-measure bug) was necessary but not sufficient -- its
             formula is a pure branch-selection over plain columns with no aggregate function
             anywhere, exactly the shape this wraps. A MEASURE reference is already a scalar and is
@@ -996,7 +996,7 @@ class TmdlModel:
         # `double` in `Key Highlights`), so a single flat dict keyed by spelling alone lets whichever
         # table happens to iterate FIRST win globally -- Activation's own calc got Key Highlights'
         # dtype, silently defeating the string-cast proof and letting an uncast AVERAGE(<string
-        # column>) reach TMDL. Real corpus regression: GCLM_EU_GERMANY_COMMERZBANK_AG_v2's
+        # column>) reach TMDL. Real corpus regression: WorkbookA_v2's
         # Activation.'Activation Rate_issr', Desktop error "The function AVERAGEX cannot work with
         # values of type String".
         local_types, glob_types = {}, {}
@@ -1288,7 +1288,7 @@ class TmdlModel:
                     # BLANK across many real rows); inline the whole formula into an X-iterator
                     # instead, with plain bare-column resolution (the iterator supplies the row
                     # context SELECTEDVALUE was there to work around). See `_shelf_agg_only`'s own
-                    # docstring for the real Desktop symptom this fixes (GCLM's "Card Penetration").
+                    # docstring for the real Desktop symptom this fixes (WorkbookA's "Card Penetration").
                     shelf_iter = shelf_agg_map.get(fkey(c)) if becomes_measure else None
                     active_resolve = resolve if shelf_iter else (
                         resolve_measure_safe if becomes_measure else resolve)
@@ -1726,7 +1726,7 @@ class TmdlModel:
         # report opens, instead of BLANK() until a user clicks a slicer. Without this, EVERY
         # measure built on a parameter (a large fraction of most workbooks' calcs) reads blank on
         # first open, because a multi-row Param table starts with nothing selected and Power BI
-        # emits no default-selection state for it. Real corpus example: Prevent Dashboard's own
+        # emits no default-selection state for it. Real corpus example: WorkbookB Dashboard's own
         # "1D - OI Summary" tab renders nothing until pl.Slice By/pl.Selected Metric/etc. are all
         # manually picked -- this is the fix, not a workaround at the report layer, because it
         # is one already-proven DAX function, not an unconfirmed PBIR page/report filterConfig
@@ -1946,7 +1946,7 @@ class TmdlModel:
         # both, filtered by a field on either, needs to filter fact -> dimension -> fact, which
         # the default single cross-filter direction (dimension -> fact only) cannot do. Desktop:
         # "There is a missing relationship between these fields. Use Autodetect...". Contrast
-        # with a single-spoke hub (real corpus example: "Prevent Dashboard"'s `Insights` fact
+        # with a single-spoke hub (real corpus example: "WorkbookB Dashboard"'s `Insights` fact
         # joined to 13 DIFFERENT one-side dimensions, each with exactly one spoke) -- an ordinary
         # star schema that Desktop's default single direction already handles fine, so it is left
         # untouched: turning on bothDirections where it is not needed only adds the well-documented
@@ -2268,7 +2268,7 @@ if __name__ == "__main__":
 
     # A parameter reference is the SAME hazard: resolve_param always points at the parameter's
     # SELECTEDVALUE measure, so a calc referencing [Parameters].[X] must become a measure too, even
-    # with no aggregate function in sight. Missing this shipped a real workbook (Prevent Dashboard)
+    # with no aggregate function in sight. Missing this shipped a real workbook (WorkbookB Dashboard)
     # with 'cl.Is Selected Slice By?' as a calculated COLUMN whose DAX referenced a parameter's
     # measure -- the model loaded, but every report filter on that column failed in Desktop with
     # "Broken_Filters" (confirmed by elimination: every other filter in that report targets a plain
@@ -2305,7 +2305,7 @@ if __name__ == "__main__":
     # CROSS-table reference: after split_federated_datasource homes an unconstrained (e.g.
     # parameter-only) calc on the primary table and a DIFFERENT calc that references it on a
     # sibling table, the referencing calc must be promoted too -- exactly the same hazard as
-    # `agg_t`/`param_t` above, one table apart. Missing this shipped 10 real fields in Prevent
+    # `agg_t`/`param_t` above, one table apart. Missing this shipped 10 real fields in WorkbookB
     # Dashboard as calculated columns referencing a measure on a sibling table; Desktop rejected
     # all of them at load ("references measure ... DAX forbids a column referencing a measure").
     cross_a = {"calcs": [
@@ -2329,7 +2329,7 @@ if __name__ == "__main__":
     # Promoting a calc to a measure fixes the column-references-measure hazard above, but a pure
     # branch-selection formula (no aggregate function of its own) has bare column references that
     # relied on a calculated COLUMN's implicit row context -- a measure has none. Confirmed on a
-    # real workbook (Prevent Dashboard, 'cl.Slice By'): promoting it was necessary but surfaced a
+    # real workbook (WorkbookB Dashboard, 'cl.Slice By'): promoting it was necessary but surfaced a
     # SECOND real Desktop error, "A single value for column '...' cannot be determined... This can
     # happen when a measure or function formula refers to a column that contains many values
     # without specifying an aggregation" (Underlying Error: Missing_References). `resolve_measure_safe`
@@ -2359,7 +2359,7 @@ if __name__ == "__main__":
     # `_shelf_agg_only`: a calc promoted to a measure PURELY by a parameter reference (no
     # aggregate of its own) but used EXCLUSIVELY via `SUM(<calc>)` on its own worksheet shelf
     # must be SUMX-inlined, not SELECTEDVALUE-wrapped -- SELECTEDVALUE returns BLANK the instant
-    # more than one real row exists, exactly the GCLM "Card Penetration" bug (see that method's
+    # more than one real row exists, exactly the WorkbookA "Card Penetration" bug (see that method's
     # own docstring for the full real-corpus story).
     shelf_t = {
         "tableau_name": "ShelfT", "caption": "ShelfT", "provenance": "test",
@@ -2588,7 +2588,7 @@ if __name__ == "__main__":
     # `crossFilteringBehavior: bothDirections` on both its relationships -- a flat table combining
     # raw columns from both spokes, filtered by a field on either, needs to filter
     # fact -> dimension -> fact, which Desktop's default single direction cannot do. "Dim2" is a
-    # single-spoke hub (only "Fact2" joins to it, the ordinary star-schema shape "Prevent
+    # single-spoke hub (only "Fact2" joins to it, the ordinary star-schema shape "WorkbookB
     # Dashboard"'s real `Insights` fact/13-dimension model already has) and must be LEFT at
     # Desktop's default single direction -- turning on bothDirections where it is not needed only
     # adds the well-documented risk of bidirectional relationships changing filter context in

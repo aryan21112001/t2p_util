@@ -17,7 +17,7 @@ A column visible ONLY via `<metadata-record>` (no explicit `<column>` tag in ITS
 got stored under its raw internal name (`"for_view"`, lowercase) — but every filter/shelf
 reference to that same raw name, anywhere in the workbook, resolves its DISPLAYED caption through
 a workbook-GLOBAL `name_map`, which could return `"For View"` (borrowed from a totally different
-datasource that happens to give the same raw field an explicit caption). Real corpus (GCLM): this
+datasource that happens to give the same raw field an explicit caption). Real corpus (WorkbookA): this
 affected `Activation`/`Dormancy`/`Key Highlights`/`Operations Management`/`Usage Deepdive`/`Usage
 Overview` — 281 real filter sites hit it for one field alone. **Fix:** `extract_datasource` now
 takes an optional `name_map` parameter and consults it in the metadata-record backfill loop,
@@ -29,7 +29,7 @@ The row above fixed the metadata-record-ONLY backfill path, but a field that DOE
 `<column>` tag in its own datasource — just with no `caption=` attribute on that tag — hit the
 identical bug one code path over: `caption = c.get("caption") or (name or "").strip("[]")` fell
 straight to the bare raw name, never consulting `name_map`, even though the metadata-record path
-right below it in the same function already did. Real corpus (GCLM): confirmed live against a
+right below it in the same function already did. Real corpus (WorkbookA): confirmed live against a
 real rebuilt Desktop model. `Acquisition`'s own `[prod_id]` column has an explicit `<column
 name='[prod_id]' ... />` tag with NO caption; `Key Highlights`' sibling datasource captions its
 OWN `[prod_id]` as `"Prod Id"`. Left bare, Acquisition's column stayed named `prod_id` while every
@@ -78,7 +78,7 @@ the correct multiple. **Fix:** backfill now covers both `class='column'` and `cl
 A lone `member='"(All)"'` member filter is Tableau's own "show every value" sentinel, not a real
 domain value — but it was being emitted as a literal `kind: "in"` filter matching ZERO real rows,
 silently zeroing out every visual that filtered through it (plus anything blend-key cross-filtered
-from it). Real corpus (GCLM): ~74 of 156 cards affected. **Fix:** a single-member value of exactly
+from it). Real corpus (WorkbookA): ~74 of 156 cards affected. **Fix:** a single-member value of exactly
 `"(All)"` now classifies as `kind: "none"` (restricts nothing), the same treatment `level-members`
 already got. **Status:** ✅ Fixed.
 

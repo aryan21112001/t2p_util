@@ -516,7 +516,7 @@ def check_column_references_measure(f: Findings, project: str, root: Path) -> No
     always points at the parameter's SELECTEDVALUE measure), and it is easy to special-case away by
     accident since it looks identical to an ordinary same-table column shorthand.
 
-    Confirmed against a real workbook (Prevent Dashboard): a calculated column referenced a
+    Confirmed against a real workbook (WorkbookB Dashboard): a calculated column referenced a
     parameter's measure via the bare form, the model loaded without error, and every report filter
     on that column failed in Desktop with "Broken_Filters" -- silent until a user opened that exact
     page. Measures are unique model-wide, so a bare name matching ANY measure anywhere is a hit
@@ -690,7 +690,7 @@ def check_literal_plus_concatenation(f: Findings, project: str, root: Path) -> N
     """A string literal directly touching `+` in a measure/column body means the original Tableau
     formula used `+` for concatenation. DAX's `+` is always arithmetic -- valid-looking DAX that
     fails at QUERY TIME, not load time, on the first visual that evaluates it: "Cannot convert
-    value '' of type Text to type Numeric/Date". Confirmed on a real workbook (Prevent Dashboard):
+    value '' of type Text to type Numeric/Date". Confirmed on a real workbook (WorkbookB Dashboard):
     `COALESCE(a, "") + "|" + COALESCE(b, "")`, a label-building concatenation. `dax.py`'s
     `add_expr` now always rewrites a `+` chain containing a literal to `&`, so this shape should
     never appear in emitted DAX -- a hit here means that rewrite regressed.

@@ -16,7 +16,7 @@ does, DETECT-AND-REPORT ONLY: it never rewrites relationships.tmdl or any other 
 pipeline's fixes are applied by hand in Power BI Desktop, guided by COPILOT_FIX_PROMPTS.md -- see
 dummy_data_pipeline_orchestrator.py's own docstring).
 
-Real corpus regression this catches: GCLM_EU_GERMANY_COMMERZBANK_AG_v2's Acquisition<->Activation
+Real corpus regression this catches: WorkbookA_v2's Acquisition<->Activation
 Blend Key includes `for_view` -- a plain column, same name, same Power BI dataType on both sides
 -- whose real sampled values are {opcert, opcert_dist} on one side and {Channel, MCC, Spend Build
 Up, ...} on the other: ZERO overlap, so the many-to-many relationship can never produce a matching

@@ -573,7 +573,7 @@ Planned requirements (to be confirmed as implementation proceeds). The existing 
 | 3 | Power BI / Fabric workspace and service principal | Will be provided and managed. Testing happens on a separate environment and machine that will have everything in place. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
 | 9 | Hardware limits | Not a concern: the target machine will have enough disk and memory. The disk pre-check and streaming design stay as safeguards |
 | 10 | Packaged data type | Packaged data in the large workbooks is **mostly `.hyper` extracts**; the `.hyper` to Parquet path is the primary data route |
-| 11 | Existing agents and skills | The archived agents-and-skills pipeline is **used as-is: nothing in it is changed or added to**. It is restored byte-for-byte under `reconstructed-tableau-powerbi-pipeline/`; see [section 25](#25-existing-agents-and-skills-pipeline-used-as-is) |
+| 11 | Existing agents and skills | The archived agents-and-skills pipeline is **used as-is** (behaviour and documentation unchanged), after a one-time removal of references to the environment it came from. It is restored byte-for-byte under `reconstructed-tableau-powerbi-pipeline/`; see [section 25](#25-existing-agents-and-skills-pipeline-used-as-is) |
 | 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports **connect to the original source systems** (confirmed); data that exists only inside a `.twbx` is extracted into the output folder |
 | 5 | Row-level security | **Full access:** all users see all rows, so no RLS roles are generated. The tool still detects user filters / `USERNAME()`-style logic and warns if any is found; see [section 24](#24-row-level-security-handling) |
 | 6 | LLM data policy | No restriction on formulas and metadata. All extracted content is stored as **definite YAML files** that the LLM tooling reads and writes. Row-level data is never sent |
@@ -648,9 +648,9 @@ If a future engagement needs RLS, candidate roles can be generated as `needs-rev
 
 ### 25.1 What it is and where it is
 
-`reconstructed-tableau-powerbi-pipeline/` holds an existing pipeline of five numbered agents and a set of skills that convert one Tableau workbook (`.twbx` / `.twb`) into a Power BI project (`.pbip`). It was restored byte-for-byte from the archive `ALL_AGENTS_AND_PIPELINE.md`: **147 files** (86 text, 61 binary) under exactly two roots, `tools/` and `.claude/skills/`. Every file was checked against its archived byte length and SHA-256; see `reconstructed-tableau-powerbi-pipeline/RECONSTRUCTION_REPORT.md`.
+`reconstructed-tableau-powerbi-pipeline/` holds an existing pipeline of five numbered agents and a set of skills that convert one Tableau workbook (`.twbx` / `.twb`) into a Power BI project (`.pbip`). It was restored byte-for-byte from the archive `ALL_AGENTS_AND_PIPELINE.md`: **147 files** (86 text, 61 binary) under exactly two roots, `tools/` and `.claude/skills/`. Every file was checked against its archived byte length and SHA-256 at restoration time; see `reconstructed-tableau-powerbi-pipeline/RECONSTRUCTION_REPORT.md`.
 
-**It is used as-is. Nothing in it is changed or added to.** That includes its documentation, its contradictions and stale statements, and its `__pycache__` files. Changes to behaviour belong in code outside the snapshot or in a later, explicit decision.
+**It is used as-is: its behaviour, documentation, contradictions and stale statements are not changed or added to.** One deliberate exception was made afterwards: because this is an independent, personal long-term project, references to the environment the tooling was copied from were removed (names inside sample data and comments, and the compiled `__pycache__` files, which embedded personal and internal paths and are now git-ignored). The report lists exactly what was changed. The tree therefore no longer matches the archive's hashes for those files. Further changes to behaviour belong in code outside the snapshot or in a later, explicit decision.
 
 ### 25.2 Pipeline order
 
@@ -687,7 +687,7 @@ The `.claude/skills/` folder also contains `validate-blend-key-domains`; the age
 
 ### 25.4 Prerequisites not included in the archive
 
-The archive covers only `tools/` and `.claude/skills/`. It contains **no dependency manifest or environment configuration**. From the imports in the restored scripts, third-party packages in use include `openpyxl`, `python-docx`, `jsonschema`, `referencing`, `PyYAML` and `tableauhyperapi`. The scripts are documented as run with `python3`; the archived `.pyc` files were built with Python 3.9 and 3.14. Exact versions and the remaining setup must be supplied separately. The archive does not claim any of this is installed or verified; running the pipeline has not been done in this repository.
+The snapshot covers only `tools/` and `.claude/skills/`. It contains **no dependency manifest or environment configuration**. From the imports in the restored scripts, third-party packages in use include `openpyxl`, `python-docx`, `jsonschema`, `referencing`, `PyYAML` and `tableauhyperapi`. The scripts are documented as run with `python3`; the original archive's compiled caches showed they had been run under Python 3.9 and 3.14 (the caches are no longer in the repository). Exact versions and the remaining setup must be supplied separately. The archive does not claim any of this is installed or verified; running the pipeline has not been done in this repository.
 
 ### 25.5 Where this README and the pipeline differ
 
@@ -704,9 +704,9 @@ These are recorded, not resolved:
 | Tableau Server / Cloud ingest | Planned (section 4.2) | Not found in the archive; inputs are local `.twbx` / `.twb` |
 | Row-level security | Detect and warn (section 24) | Not checked in this pass |
 | Interface | `t2p` CLI (section 15) | Per-agent and per-orchestrator `python3` commands |
-| Python version | 3.11+ (section 18) | Built with 3.9 and 3.14 per the archived `.pyc` files |
+| Python version | 3.11+ (section 18) | Run under 3.9 and 3.14 per the original archive's compiled caches |
 
-The archived documents also contradict each other in places (for example the "Three-Agent Architecture" document versus the five-agent pipeline, and skills one document calls removed but others still describe). They are preserved unchanged.
+The restored documents also contradict each other in places (for example the "Three-Agent Architecture" document versus the five-agent pipeline, and skills one document calls removed but others still describe). They are preserved as restored.
 
 ---
 

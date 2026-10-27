@@ -57,7 +57,7 @@ Usage
     python3 materialize_parameter_domains.py <project_dir> [<project_dir> ...] [--apply]
 
 <project_dir> is a built project folder, e.g.
-    output/cit_corpus_run/Prevent Dashboard_dummy
+    output/corpus_run/WorkbookB Dashboard_dummy
 i.e. the folder containing `_work/ir.json` and a `*.SemanticModel` subfolder.
 
 Without --apply this is a dry run: it prints exactly what it would change and writes the

@@ -655,7 +655,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='DAX forbids it structurally -- columns compute at refresh time, before any '
                 'query-time measure exists. Desktop reports "A circular dependency was detected" '
-                'naming an unrelated pair of columns, never the real cause. Confirmed on Prevent '
+                'naming an unrelated pair of columns, never the real cause. Confirmed on WorkbookB '
                 'Dashboard: a calculated column referenced a parameter\'s SELECTEDVALUE measure via '
                 'the bare form, the model loaded clean, and every report filter on that column then '
                 'failed with Broken_Filters -- silent until a user opened that exact page. The bare '
@@ -676,7 +676,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='Valid-looking DAX that fails at QUERY time, not load time, on the first visual '
                 'that evaluates it: "Cannot convert value \'\' of type Text to type Numeric/Date". '
-                'Tableau uses `+` for both. Confirmed on Prevent Dashboard: '
+                'Tableau uses `+` for both. Confirmed on WorkbookB Dashboard: '
                 '`COALESCE(a,"") + "|" + COALESCE(b,"")`. The translator now rewrites any `+` chain '
                 'containing a literal to `&`, so a hit here means that rewrite regressed.',
         detection=POST_EMIT,

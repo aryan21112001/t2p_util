@@ -76,7 +76,7 @@ Calculation error ... The function SUM cannot work with values of type String`. 
 already builds for calcs: `SUM`/`AVERAGE` on a string field cast via `SUMX`/`AVERAGEX` +
 `IFERROR(VALUE(...), BLANK())`; `COUNT`/`DISTINCTCOUNT` pass through; `MIN`/`MAX`/`MEDIAN`/
 `STDEV.S`/`VAR.S` on a string field decline rather than guess. **Status:** ✅ Fixed (found on
-GCLM). No post-emit backstop yet — there's no existing per-table-per-column dtype feed into
+WorkbookA). No post-emit backstop yet — there's no existing per-table-per-column dtype feed into
 either checker for this specific shape; worth adding if it recurs.
 
 ### `resolve_measure_safe`'s SELECTEDVALUE-wrap fired even when the calc's real usage is `SUM(calc)` on a shelf
@@ -86,7 +86,7 @@ columns" (its original `cl.Slice By` bug). But that fix applied BLANKET to every
 measure with no aggregate of its own — including one whose REAL Tableau usage, on its own
 worksheet shelf, is `SUM(calc)`. `SELECTEDVALUE` returns BLANK the instant more than one real row
 exists in context, which is always true for a bare row-level column aggregated by a real shelf
-SUM. Real corpus (GCLM), confirmed live against real Desktop: `Penetration` = `(IF
+SUM. Real corpus (WorkbookA), confirmed live against real Desktop: `Penetration` = `(IF
 [Parameters].[Opcert or User Input]="Opcert" THEN [issr_cif_cy] ... END) / [Parameters].[Retail
 Customers]`, shelf-used as `SUM(Penetration)` on its own worksheet, emitted as
 `DIVIDE(SELECTEDVALUE('Acquisition'[issr_cif_cy]), ...)` — BLANK against every real row, where
@@ -104,7 +104,7 @@ around. A calc used as a plain dimension reference (`agg=None`) anywhere, or wit
 aggregations across worksheets, is untouched — still takes the old `SELECTEDVALUE` path.
 **Status:** ✅ Fixed, self-tested (both the SUMX-inlining case and the no-regression dimension-
 reference case), confirmed live against a fresh rebuild (`EVALUATE ROW("x", [Penetration])` →
-`1.1668177500000003`, non-blank). Affects 28 calcs across 4 tables in GCLM alone
+`1.1668177500000003`, non-blank). Affects 28 calcs across 4 tables in WorkbookA alone
 (Recommendations 21, Operations Management 1, Acquisition 4, Usage Overview 1) — likely resolves
 other "blank card" symptoms beyond the one that surfaced it. If you hit a blank card bound to a
 parameter-promoted measure, check whether its real Tableau usage is a shelf aggregate before

@@ -688,10 +688,10 @@ if __name__ == "__main__":
                            "qa": {"already_resolved_count": 0, "dax_warnings": [],
                                   "unaccounted_count": 0}}
         rollup = render_corpus_rollup_md(collections.OrderedDict(
-            [("test_corpus", [e_with_mapping]), ("cit_corpus", [e_with_mapping, e_with_mapping])]))
+            [("test_corpus", [e_with_mapping]), ("sample_corpus", [e_with_mapping, e_with_mapping])]))
         assert "Mandatory Effort by Group" in rollup and "Optional Effort by Group" in rollup
         assert "| test_corpus | 1 | 90% |" in rollup
-        assert "| cit_corpus | 2 | 90% |" in rollup
+        assert "| sample_corpus | 2 | 90% |" in rollup
 
         print("effort_report.py self-test OK (classification, hours math, rendering)")
     else:

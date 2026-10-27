@@ -38,6 +38,15 @@ This file is restoration metadata. It is not part of the archived source roots (
 
 For 85 of 86 text files, removing exactly one framing newline before the closing fence reproduced the recorded length and SHA-256. For `.claude/skills/build-tableau-pbip/assets/CY26SU02.json` (marked `Source ended with newline: no`), the archive has one additional blank line before the closing fence, so removing one newline gave 8632 bytes and failed the check. Removing two newlines gave exactly the recorded 8631 bytes with a matching SHA-256, and that is what was written. No other file needed this.
 
+## Post-restoration sanitization (deliberate deviation from the archive)
+
+After the byte-for-byte restoration above, the tree was **deliberately modified** to remove references to the environment it was copied from, because this project is to be maintained as an independent, personal long-term project. The integrity results above describe the tree *as restored*; they no longer hold for the files listed below, and the SHA-256 values in the archive no longer match them.
+
+- **Names replaced** (case-sensitive, text files only, 33 files changed): the name of the originating organisation inside sample field names (now `Sample ...`); two internal workbook names, now `WorkbookA` and `WorkbookB Dashboard`; one client-specific workbook file name, now `WorkbookA_v2`; and one internal corpus folder name (`cit_corpus`, `cit_corpus_run`), now `sample_corpus` and `corpus_run`. Line-wrapped occurrences were handled as well. Every changed `.py` file was re-parsed with `ast` to confirm it is still valid Python syntax; no code was executed.
+- **Compiled caches removed:** all 61 `__pycache__/*.pyc` files were deleted. They embedded a personal username and an internal repository path, and the replaced names, and cannot be edited safely. They are regenerated automatically when the scripts run, and a repository-root `.gitignore` now excludes them. The tree now holds 86 files besides this report (86 text files).
+- **Not changed:** business-domain field, page and column names that came from the original dashboards (for example the card-payments terms and abbreviated column names that appear in examples and comments), generic example paths, and the personal folder name `agent-extend-aryan`. These need a separate decision.
+- **Git history:** earlier commits on this repository still contain the original, unsanitized files. Editing the current tree does not remove them from history.
+
 ## Scope
 
 This restores the archived snapshot under `tools/` and `.claude/skills/`. Files outside those roots, such as root-level dependency manifests or environment configuration, are not part of the archive and have not been restored. The archived documents were restored as archived, including any contradictory or stale guidance. Nothing was executed, no dependencies were installed, and restoration checks prove archive integrity only, not that dependencies are installed or that Power BI Desktop opens a project.

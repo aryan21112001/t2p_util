@@ -19,7 +19,7 @@ the workbook, in addition to the RANK/RANK_DENSE shape `extend-tablecalc-rank` a
      proven pattern, flagged extra-clearly per-measure in the report.
 
      NOTE on the real corpus this was built against: shape (4) is real and self-tested (see
-     `_selftest()`), but on `Prevent Dashboard` it promotes NOTHING new -- its 4 real
+     `_selftest()`), but on `WorkbookB Dashboard` it promotes NOTHING new -- its 4 real
      parameter-driven `WINDOW_SUM` residue items (`Rolling Lookups`,
      `User Specified Moving Average/Rolling ...`) all ALSO carry `tc_spec.ordering_type=="Rows"`
      with `has_address=False`, i.e. Tableau recorded no named addressing field for them at all --

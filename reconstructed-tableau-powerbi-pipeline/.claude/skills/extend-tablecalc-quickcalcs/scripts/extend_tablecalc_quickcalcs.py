@@ -137,7 +137,7 @@ def _spelling_matches(c, caption):
     """A field is referenced by ITS OWN CAPTION on a shelf (extract.py's own name_map already
     resolves shelf refs that way), but from INSIDE another calc's formula text Tableau just as
     often uses the field's INTERNAL name instead -- and that internal name is not always the
-    same string, case included: real corpus example (Prevent Dashboard), the 'Partner Name -
+    same string, case included: real corpus example (WorkbookB Dashboard), the 'Partner Name -
     ID' column's own `tableau_name` is literally `[Partner Name - Id]` (lowercase 'Id'), and
     `cl.Slice By`'s formula references it that exact way. `tmdl.py`'s own `_resolver` already
     indexes a field under BOTH spellings (`c["name"]` and `fkey(c)`) for exactly this reason --
@@ -214,7 +214,7 @@ def resolve_pcto_base_agg(tc):
     real Power BI MEASURE already emitted by the main build, not a column, and needs no
     aggregation wrapper at all: `CALCULATE(<measure>, ALLSELECTED(<partition>))` is valid DAX
     against ANY measure regardless of how complex its own formula is. Real corpus confirmation
-    (Prevent Dashboard's "1W - Slice By"): the base pill is `cl.Selected Metric - Count`, a
+    (WorkbookB Dashboard's "1W - Slice By"): the base pill is `cl.Selected Metric - Count`, a
     Parameter-switched `IF/ELSEIF` cascade over several different SUMs -- already emitted as its
     own DAX measure (`'Insights'[cl.Selected Metric - Count]`, referenced the exact same way by a
     SIBLING measure already in this model, `cl.Selected Metric - Choose Value Type`) -- there is
@@ -227,7 +227,7 @@ def resolve_pcto_base_agg(tc):
     attribute (Tableau's own explicit statement, authoritative when present) -- real corpus
     example: a Running Total pill with `aggregation='Sum'`, no `type='PctTotal'` equivalent yet
     confirmed in this corpus but captured the same way for when one is -- else the shelf ref's own
-    underlying-agg segment (real corpus example: Prevent Dashboard's "3B - Days to CE Eligible"
+    underlying-agg segment (real corpus example: WorkbookB Dashboard's "3B - Days to CE Eligible"
     PctTotal pill has no `aggregation=` attribute at all; `sum` is the ONLY place its base
     aggregation is recorded)."""
     explicit = tc.get("aggregation")
@@ -280,7 +280,7 @@ def rescue_partition_to_column(ir, na, partition_field, param_values=None, calc_
     `_fold_default_branch` engine rather than re-implemented), the workbook's own SAVED
     parameter value may make which branch is active a FACT, not a guess.
 
-    Real corpus confirmation (Prevent Dashboard's "1W - Slice By"): the partition field is
+    Real corpus confirmation (WorkbookB Dashboard's "1W - Slice By"): the partition field is
     `cl.Slice By`, a Parameter-gated cascade over `pl.Slice By` (saved value `"Partner"`), whose
     active branch is a real column (`Partner Name - ID`).
 
@@ -335,7 +335,7 @@ def find_candidates(ir, na):
     used_names = set()  # (alloc_table, measure_name) already claimed by an EARLIER candidate in
                         # THIS SAME run -- the same base field with a DIFFERENT partition on a
                         # different worksheet is a real, DISTINCT measure, and naming both from
-                        # the base field alone collides (real corpus proof: Prevent Dashboard's
+                        # the base field alone collides (real corpus proof: WorkbookB Dashboard's
                         # "3B - Days to CE Eligible" and "3C - Reversals - Time from Defl" both
                         # promote a Percent-of-Total over `Lookups`, with different partitions --
                         # `tools/pbip_rules/lint.py` caught this as a load-breaking duplicate
@@ -390,7 +390,7 @@ def find_candidates(ir, na):
                 if part_kind == "measure":
                     # See rescue_partition_to_column's own docstring -- a partition field that
                     # is ITSELF a parameter-gated dynamic-dimension measure (real corpus shape:
-                    # Prevent Dashboard's "1W - Slice By", partitioned by `cl.Slice By`) may still
+                    # WorkbookB Dashboard's "1W - Slice By", partitioned by `cl.Slice By`) may still
                     # fold down to a real column via the workbook's own saved parameter value.
                     rescued = rescue_partition_to_column(ir, na, partition_field)
                     if rescued is None:
@@ -655,7 +655,7 @@ def _selftest():
         "encodings": [{"field": "Sales", "agg": "pcdf", "table_calc": {
             "type": "PctDiff", "ordering_type": "Rows", "ordering_field": None,
             "aggregation": None, "underlying_agg": "sum"}}]},
-        # Real corpus shape (Prevent Dashboard "1W - Slice By"): base value is 'usr' aggregation
+        # Real corpus shape (WorkbookB Dashboard "1W - Slice By"): base value is 'usr' aggregation
         # AND resolves to a real, already-emitted MEASURE (not just declined by name -- promoted).
         {"name": "W5", "shelves": {"rows": [{"field": "Count", "agg": "pcto"}], "cols": []},
         "encodings": [{"field": "Count", "agg": "pcto", "table_calc": {
@@ -727,7 +727,7 @@ def _selftest():
                      "ALLSELECTED('T1'[Region])))"), expr3
     print(f"OK  generate_dax (MEASURE base -- no aggregation wrapper): {expr3}")
 
-    # rescue_partition_to_column -- real corpus shape (Prevent Dashboard "1W - Slice By"): the
+    # rescue_partition_to_column -- real corpus shape (WorkbookB Dashboard "1W - Slice By"): the
     # partition field itself is a parameter-gated dynamic-dimension MEASURE, whose active branch
     # folds down to a real column via the workbook's own SAVED parameter value.
     ir_rescue = {"tables": [
@@ -791,7 +791,7 @@ def _selftest():
     print("OK  resolve_field declines (does not guess) a field ambiguous across 2 tables, or "
          "absent entirely")
 
-    # Real corpus bug this fixes (Prevent Dashboard, 'cl.Slice By' -> 'Partner Name - ID'): a
+    # Real corpus bug this fixes (WorkbookB Dashboard, 'cl.Slice By' -> 'Partner Name - ID'): a
     # formula's own literal `[Field]` reference can match a column's INTERNAL `tableau_name`
     # spelling, not its resolved CAPTION -- resolve_field must try both, exactly like tmdl.py's
     # own `_resolver` already does, never declining a field that genuinely does resolve just

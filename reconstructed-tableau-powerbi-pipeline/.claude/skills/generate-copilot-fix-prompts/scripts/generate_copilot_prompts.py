@@ -184,7 +184,7 @@ def lookup_param(pid, param_by_id):
     `param_by_id.get(pid)` alone conflates two genuinely different situations under the same
     `None`: an id this workbook recorded MULTIPLE conflicting values for (real ambiguity -- never
     guess which one a formula meant), and an id that was never recorded as its own entry AT ALL.
-    Found on a real corpus workbook (Prevent Dashboard): `[Parameters].[Parameter 9 1]` was
+    Found on a real corpus workbook (WorkbookB Dashboard): `[Parameters].[Parameter 9 1]` was
     reported "AMBIGUOUS, multiple saved values recorded" when `ir.json` in fact has ZERO entries
     under that exact id -- the message was simply wrong about WHY it could not be resolved.
 
@@ -223,7 +223,7 @@ def compute_agg_map_by_name(calc_by_id):
     actually emit.
 
     A calc's own declared `role` field decides NOTHING here -- confirmed the hard way on this
-    exact corpus workbook (Prevent Dashboard): tmdl.py's own docstring records a real failure
+    exact corpus workbook (WorkbookB Dashboard): tmdl.py's own docstring records a real failure
     where a field got emitted as a calculated COLUMN whose DAX referenced a parameter's MEASURE;
     the model loaded fine (no preflight check catches the unqualified `[Name]` shape a parameter
     reference uses), but every report filter built on that column then failed in Desktop with
@@ -287,7 +287,7 @@ def drop_already_emitted(wb_dir, residue):
 
     `residue.json` is a frozen record of what the ORIGINAL build declined; it is never rewritten.
     That is correct as history and actively misleading as a to-do list once anything has been
-    fixed by hand in Desktop -- on Prevent Dashboard, this document kept telling a reviewer to
+    fixed by hand in Desktop -- on WorkbookB Dashboard, this document kept telling a reviewer to
     write DAX for 17 DATETRUNC and 10 STR fields that were already live in the TMDL. This check
     keeps every to-do list this skill produces (COPILOT_FIX_PROMPTS.md, EFFORT_REPORT.md) honest
     about what is actually still outstanding, whoever applied the earlier fix and however.
@@ -344,7 +344,7 @@ def resolve_prereq_chain(subject, calc_by_id, calc_id_by_name, real_col_ids, par
     """Every field `subject`'s own Tableau formula needs -- directly or transitively -- before
     it will actually work, whether or not each one already has its own entry elsewhere in this
     document. This is the exact manual trace a 'root' cascade field's formula often forces by
-    hand: on Prevent Dashboard's real `cl.Is Current Period - Lookups?`, its own residue.json
+    hand: on WorkbookB Dashboard's real `cl.Is Current Period - Lookups?`, its own residue.json
     entry names it as an independent "root" clearing 4 downstream fields, but ITS OWN formula
     transitively needs 4 MORE fields first (`cl.Current Period - Start/End Date`, `cl.Current
     Month Start/End Date`) that each already have their OWN separate entry elsewhere in this
@@ -757,7 +757,7 @@ report page.
 something broken). Every field's own entry below tells you which of the two to pick -- read that
 line before you start, do not assume:**
 1. In the **Data** pane on the right, find the **table** named in the field's entry below (e.g.
-   `DS_Prevent Extract | Project : Data Sources`) and click it once to select it.
+   `DS_WorkbookB Extract | Project : Data Sources`) and click it once to select it.
 2. On the ribbon, go to the **Table tools** tab (or right-click the table name) and choose
    **New measure** or **New column** -- exactly as the field's own entry says.
 3. A formula bar opens at the top of the canvas. Type:

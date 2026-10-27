@@ -10,7 +10,7 @@ description: >
   ordinary physical column) whose real-world value domains never overlap at all -- that is only
   detectable once real data exists, which is what this skill checks. DETECT-AND-REPORT ONLY: it
   never rewrites relationships.tmdl or any other TMDL file. Real corpus regression this catches:
-  GCLM_EU_GERMANY_COMMERZBANK_AG_v2's Acquisition<->Activation Blend Key includes `for_view`, a
+  WorkbookA_v2's Acquisition<->Activation Blend Key includes `for_view`, a
   plain column with the same name and dataType on both sides, whose real values are
   {opcert, opcert_dist} on one side and {Channel, MCC, Spend Build Up, ...} on the other -- zero
   overlap, so every visual spanning both tables renders empty in Power BI Desktop no matter how

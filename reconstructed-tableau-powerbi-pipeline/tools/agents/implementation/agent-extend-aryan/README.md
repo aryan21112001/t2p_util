@@ -15,7 +15,7 @@ existing build. See `tools/agents/README_AGENTS.md` for the authoritative map of
 NEW extension agent should be registered.
 
 **Every fix listed here is already in the code.** Nothing in this folder needs to be re-applied
-by hand — it exists so that the NEXT time this pipeline runs on a NEW workbook (not just GCLM,
+by hand — it exists so that the NEXT time this pipeline runs on a NEW workbook (not just WorkbookA,
 any `.twbx`/`.twb`), whoever is debugging a weird result can grep this folder for the symptom
 first, confirm "yes, that class of bug is already handled," and go look for a genuinely NEW
 cause instead of re-discovering an old one. If a bug described here ever recurs, that means the
@@ -33,18 +33,18 @@ their addressing happens to be resolvable from worksheet-saved settings: `RANK`/
 and Tableau's Edit Table Calculation dialog," run the relevant extension agent against the
 existing build first — it costs nothing (writes a separate copy, never touches the original).
 
-**Run against GCLM specifically (2026-10-06), all three, verified live via `pbi-cli`, not just
+**Run against WorkbookA specifically (2026-10-06), all three, verified live via `pbi-cli`, not just
 trusted from the generated report:**
 
 | Agent | Promoted | Live-verified result |
 |---|---|---|
-| `agent-extend-tablecalc-rank` | 0 of 0 candidates | GCLM has no `RANK`/`RANK_DENSE` table calcs at all — nothing to check. |
-| `agent-extend-dax-measures` | 1 of 9 candidates (`Usage Overview`'s `index`) | ❌ **Loads fine, computes WRONG.** `RANKX(ALLEXCEPT('Usage Overview', [coridr_mcg]), [coridr_mcg], ...)` as a MEASURE requires one row per distinct `coridr_mcg` value — confirmed via direct query that it does NOT (`"0"` alone has 1,794 rows, `"SUPERMARKETS"` has 47, etc.), so evaluating it throws "a single value for column 'coridr_mcg' cannot be determined." This is EXACTLY the risk the extension's own "Before trusting this build" checklist names ("confirm the model's grain... is one row per distinct value") — here it's confirmed false. The other 8 of GCLM's 9 real `INDEX()`/`WINDOW_*`/`RUNNING_SUM` candidates stayed correctly declined (4 "Mandatory" ones have no Specific-Dimension(s) addressing recorded anywhere — their real Tableau "Compute Using" mode is "Table (Down)", which this skill doesn't implement; 4 "Optional" ones are genuinely dead fields or use an unimplemented function). **Do not ship this one promotion as-is.**
-| `agent-extend-tablecalc-quickcalcs` | 8 of 45 candidates (Percent-of-Total, `Recommendations`/`Dormancy`) | ✅ **Correct, verified two ways.** A grand-total variant (`cl.tot_crds_cnt - % of Total`) returns exactly `1.0` with no filter (= 100% of itself) and correctly re-fractions to `0.0595`/`0`/`0.9405`/`0` across `Dormancy[For View]`'s four real values (summing back to 1.0). A partitioned variant (`Issr_mcg_30_days`) returns sane 0–1 fractions summing correctly across the partition. Both tables (`Recommendations`, `Dormancy`) Full-refresh cleanly with the new measures in place. Markedly better than this skill's only other prior real-corpus result (2 promotions on Prevent Dashboard) — **worth promoting into the real build.**
+| `agent-extend-tablecalc-rank` | 0 of 0 candidates | WorkbookA has no `RANK`/`RANK_DENSE` table calcs at all — nothing to check. |
+| `agent-extend-dax-measures` | 1 of 9 candidates (`Usage Overview`'s `index`) | ❌ **Loads fine, computes WRONG.** `RANKX(ALLEXCEPT('Usage Overview', [coridr_mcg]), [coridr_mcg], ...)` as a MEASURE requires one row per distinct `coridr_mcg` value — confirmed via direct query that it does NOT (`"0"` alone has 1,794 rows, `"SUPERMARKETS"` has 47, etc.), so evaluating it throws "a single value for column 'coridr_mcg' cannot be determined." This is EXACTLY the risk the extension's own "Before trusting this build" checklist names ("confirm the model's grain... is one row per distinct value") — here it's confirmed false. The other 8 of WorkbookA's 9 real `INDEX()`/`WINDOW_*`/`RUNNING_SUM` candidates stayed correctly declined (4 "Mandatory" ones have no Specific-Dimension(s) addressing recorded anywhere — their real Tableau "Compute Using" mode is "Table (Down)", which this skill doesn't implement; 4 "Optional" ones are genuinely dead fields or use an unimplemented function). **Do not ship this one promotion as-is.**
+| `agent-extend-tablecalc-quickcalcs` | 8 of 45 candidates (Percent-of-Total, `Recommendations`/`Dormancy`) | ✅ **Correct, verified two ways.** A grand-total variant (`cl.tot_crds_cnt - % of Total`) returns exactly `1.0` with no filter (= 100% of itself) and correctly re-fractions to `0.0595`/`0`/`0.9405`/`0` across `Dormancy[For View]`'s four real values (summing back to 1.0). A partitioned variant (`Issr_mcg_30_days`) returns sane 0–1 fractions summing correctly across the partition. Both tables (`Recommendations`, `Dormancy`) Full-refresh cleanly with the new measures in place. Markedly better than this skill's only other prior real-corpus result (2 promotions on WorkbookB Dashboard) — **worth promoting into the real build.**
 
 Both builds pass `tools/pbip_rules/lint.py --schemas` clean (only pre-existing stray-file notes,
 unrelated). Outputs: `C:\pbi\ext_dax_measures`, `C:\pbi\ext_tablecalc_rank`,
-`C:\pbi\ext_tablecalc_quickcalcs` — all separate copies of `C:\pbi\out2\GCLM_realistic\GCLM` as
+`C:\pbi\ext_tablecalc_quickcalcs` — all separate copies of `C:\pbi\out2\WorkbookA_realistic\WorkbookA` as
 it stood at the time, original untouched.
 
 **Merged into the canonical `out2` deliverable (2026-10-06, same day):** the 8 good
@@ -56,7 +56,7 @@ workbook's real data grain, see table above) was deliberately left OUT. Re-verif
 afterward via a fresh isolated Desktop copy: all 8 tables Full-refresh cleanly, the merged
 `Dormancy` grand-total measure still returns `1.0`, and a previously-fixed value
 (`Activation Rate_issr` filtered `For View="Trend"` → `0.0875`) is unchanged — confirming the
-merge didn't disturb anything already working. `C:\pbi\out2\GCLM_realistic\GCLM\GCLM.pbip` is
+merge didn't disturb anything already working. `C:\pbi\out2\WorkbookA_realistic\WorkbookA\WorkbookA.pbip` is
 now the ONE current deliverable; see its own `START_HERE.md`.
 
 ## How this folder relates to `SKILL.md`
@@ -82,8 +82,8 @@ or the real-corpus numbers behind a fix.
 ## Status at a glance
 
 All fixes below were found by running the pipeline against real workbooks (NGPO, Caribbean -
-Drilldown, Prevent Dashboard, SMB IRF Program, PVT Monthly Report, AP Product Portfolio
-Management, Digital Sales - Leads, GCLM — 8 workbooks across the reference corpus), not by
+Drilldown, WorkbookB Dashboard, SMB IRF Program, PVT Monthly Report, AP Product Portfolio
+Management, Digital Sales - Leads, WorkbookA — 8 workbooks across the reference corpus), not by
 reading the code and guessing. Each one is:
 
 - **Fixed** in the script named — not a workaround, not a manual patch to generated output.
@@ -97,7 +97,7 @@ reading the code and guessing. Each one is:
 
 Running total as of 2026-10-08: **48 distinct fixes** across the four scripts below, plus the
 orchestrator/data-sampling fixes in file 01. 12 of them were found specifically while migrating
-GCLM (this engagement); the rest predate GCLM and are already baked in for every workbook that's
+WorkbookA (this engagement); the rest predate WorkbookA and are already baked in for every workbook that's
 been run since they were found.
 
 **2026-10-08 addition — a long-OPEN mystery got explained, not fixed in code.**

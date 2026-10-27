@@ -86,7 +86,7 @@ Tableau's type inference. When Tableau casts a double to a string under this ove
 a trailing `.0` for a whole number (`1.0` → `"1"`); a worksheet's saved filter member (`member=
 "1"`) is captured in that trimmed form. `generate_dummy_data.py`'s `coerce_hyper_value()`,
 sampling the same raw double for its `mtype == "text"` branch, did a naive `str(value)` instead
-— `"1.0"`, never equal to the filter's `"1"`. Real corpus (GCLM): Activation's
+— `"1.0"`, never equal to the filter's `"1"`. Real corpus (WorkbookA): Activation's
 `qtr_rnk_flg`, 0 of 9 real rows with the underlying value `1.0` ever matched `qtr_rnk_flg="1"`
 until fixed.
 
@@ -133,7 +133,7 @@ bug — the tell is that the SAME column name is independently queryable via pla
 
 ### 5. OPEN, UNRESOLVED (2026-10-06): fresh rebuilds render several barChart visuals with zero bars, no error
 
-**Symptom:** on GCLM's Acquisition page, 4 chart visuals ("2.2 Quarterly Trend - Cards in Force",
+**Symptom:** on WorkbookA's Acquisition page, 4 chart visuals ("2.2 Quarterly Trend - Cards in Force",
 "2.3 Issuer YoY growth", "2.3 Market YoY growth", "Gap to market") show their Category axis labels
 (a plain list of `Prod Id` values) but draw NO bars/lines/value marks at all — not an error, not a
 "(Blank)" card, just an empty plot area. Confirmed present in **every** fresh rebuild attempted
@@ -179,7 +179,7 @@ fixed). A plain Refresh (Home ribbon) does not fix it.
   schema.
 
 **RESOLVED (2026-10-08): root cause is Desktop's own path-keyed cache, not a pipeline bug at all.**
-Recurred on a LATER GCLM session in the exact same shape — Acquisition rendering blank, then
+Recurred on a LATER WorkbookA session in the exact same shape — Acquisition rendering blank, then
 Activation's "3.4 Preferred MCG" section rendering blank, both AFTER a rebuild that was already
 confirmed correct at the model layer (`pbi-cli dax execute` reproducing the exact visual's own
 filter context returned real, correct rows both times — same signature as the "ruled out" list

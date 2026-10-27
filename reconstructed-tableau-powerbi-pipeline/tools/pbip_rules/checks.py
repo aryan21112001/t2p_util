@@ -540,7 +540,7 @@ def check_calc_dependency_cycles(f, project: str, proj: M.Project) -> None:
         graph[node] = deps
 
     # Iterative depth-first search with an explicit colour map; recursion would overflow on
-    # the deeper corpus models (Prevent Dashboard carries 262 calculated objects).
+    # the deeper corpus models (WorkbookB Dashboard carries 262 calculated objects).
     WHITE, GREY, BLACK = 0, 1, 2
     colour: dict[tuple[str, str], int] = {}
     reported: set[frozenset] = set()

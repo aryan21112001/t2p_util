@@ -353,7 +353,7 @@ RULES: tuple[Rule, ...] = (
                  "table's column the name resolver happened to match first.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on GCLM (Usage Overview): a shared column caption across tables "
+        symptom="Confirmed on WorkbookA (Usage Overview): a shared column caption across tables "
                 "allocated a single shelf measure from a global first-match, so a visual on "
                 "the SECOND table silently bound to the FIRST table's measure -- syntactically "
                 "valid DAX against a real model object, just the wrong one; the model loads "
@@ -685,7 +685,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='DAX forbids it structurally -- columns compute at refresh time, before any '
                 'query-time measure exists. Desktop reports "A circular dependency was detected" '
-                'naming an unrelated pair of columns, never the real cause. Confirmed on Prevent '
+                'naming an unrelated pair of columns, never the real cause. Confirmed on WorkbookB '
                 'Dashboard: a calculated column referenced a parameter\'s SELECTEDVALUE measure via '
                 'the bare form, the model loaded clean, and every report filter on that column then '
                 'failed with Broken_Filters -- silent until a user opened that exact page. The bare '
@@ -706,7 +706,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='Valid-looking DAX that fails at QUERY time, not load time, on the first visual '
                 'that evaluates it: "Cannot convert value \'\' of type Text to type Numeric/Date". '
-                'Tableau uses `+` for both. Confirmed on Prevent Dashboard: '
+                'Tableau uses `+` for both. Confirmed on WorkbookB Dashboard: '
                 '`COALESCE(a,"") + "|" + COALESCE(b,"")`. The translator now rewrites any `+` chain '
                 'containing a literal to `&`, so a hit here means that rewrite regressed.',
         detection=POST_EMIT,
@@ -944,7 +944,7 @@ RULES: tuple[Rule, ...] = (
                  "matching conditional-formatting FillRule/gradient object.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on GCLM (Dormancy Management): a Square-mark heatmap's Colour "
+        symptom="Confirmed on WorkbookA (Dormancy Management): a Square-mark heatmap's Colour "
                 "measure reached the Values well but no FillRule gradient was attached, so "
                 "the matrix rendered with uniform/default cell colour instead of a heatmap. "
                 "Fixed at the generator (pbir.py's _heatmap_gradient_object). NOT given a "
@@ -1041,7 +1041,7 @@ RULES: tuple[Rule, ...] = (
                  "otherwise.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on GCLM (Dormancy Management): PBIR's own schema default for this "
+        symptom="Confirmed on WorkbookA (Dormancy Management): PBIR's own schema default for this "
                 "property is true (opt-OUT cross-filtering) on every worksheet-kind visual "
                 "unless a build explicitly sets it, which is the opposite of Tableau's "
                 "opt-IN action model -- clicking any one heatmap cell blanked every other "
@@ -1144,7 +1144,7 @@ RULES: tuple[Rule, ...] = (
         statement="A page's width and height (page.json) must be whole numbers.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom="Confirmed on GCLM: a layout pass computed a page height with round(x, 2), "
+        symptom="Confirmed on WorkbookA: a layout pass computed a page height with round(x, 2), "
                 "producing 1406.01. Desktop's Export-to-PDF path deserializes "
                 "Sections[0].Height as an integer and crashes: Newtonsoft.Json."
                 "JsonReaderException: Input string '1406.01' is not a valid integer. Fixed "
@@ -1164,7 +1164,7 @@ RULES: tuple[Rule, ...] = (
                  "deliberate containment like a background panel.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on GCLM (Acquisition page): a tableEx 'Prod Id' list and a "
+        symptom="Confirmed on WorkbookA (Acquisition page): a tableEx 'Prod Id' list and a "
                 "barChart 'Issuer YoY Growth' overlapped by 7.8px along a shared 322px edge, "
                 "inherited unchanged from the source .twb's own zone geometry -- Tableau's "
                 "renderer tolerates this as internal padding, Power BI's does not. Desktop's "
@@ -1185,7 +1185,7 @@ RULES: tuple[Rule, ...] = (
                  "shorter renders as an unreadable icon-sized placeholder.",
         enforced_by=EDITOR,
         severity=COSMETIC,
-        symptom="Confirmed on GCLM (Usage Deepdive page): several bar/line charts were "
+        symptom="Confirmed on WorkbookA (Usage Deepdive page): several bar/line charts were "
                 "emitted at icon scale, well under 120px tall, rendering as an unreadable "
                 "mini-icon with no visible axis even though the underlying query was correct "
                 "and populated. Fixed at the generator (pbir.py's _grow_undersized_charts); "

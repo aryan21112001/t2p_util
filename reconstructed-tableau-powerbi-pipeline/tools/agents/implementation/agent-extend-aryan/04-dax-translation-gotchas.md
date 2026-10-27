@@ -46,7 +46,7 @@ an already-mapped one (`INT`, `STR`) would have silently mishandled it. **Fix:**
 call whose argument strips down to exactly the text `NULL` (case-insensitive) → `BLANK()`,
 checked at the very top of `func_call`'s dispatch — before ANY per-function special case, since
 several of those (STR, DATE) have their own earlier branch that would otherwise intercept and
-mishandle this shape first. **Status:** ✅ Fixed (found on GCLM). **Verified live**, not just
+mishandle this shape first. **Status:** ✅ Fixed (found on WorkbookA). **Verified live**, not just
 unit-tested: the real downstream formula correctly evaluates to `BLANK()` under the real
 parameter branch that selects it.
 
@@ -78,7 +78,7 @@ row count to multiply by, so even `SUM` of one is a safe identity (one case wide
 literal rule). **Fix:** `_BARE_MEASURE_REF` (`^\[[^\[\]]+\]$`, `resolve_param`'s own exact
 no-table-prefix shape — a real column reference always carries a `'Table'[...]` prefix once
 resolved, so this can't false-positive on one) extends the existing 0-tables collapse branch.
-**Status:** ✅ Fixed (found on GCLM). **Verified live**: the exact stored formula evaluates to a
+**Status:** ✅ Fixed (found on WorkbookA). **Verified live**: the exact stored formula evaluates to a
 real nonzero number (`240248.8`), not blank/error.
 
 ### `SUM`/`AVERAGE` of a Tableau-STRING-typed column, inside an explicit calc formula
@@ -107,7 +107,7 @@ unaggregated column reference. Severe: one broken calc aborts a WHOLE TABLE's Fu
 cascading through every blend-key-related table. **Fix:** strip `{...}` LOD blocks before the
 aggregate-call regex (`_STRIP_LOD`), same reasoning as the bracket-strip above — a genuinely
 SEPARATE outer aggregate (`{FIXED[k]:SUM([x])} + SUM([y])`) still correctly registers as
-aggregate. **Status:** ✅ Fixed (found on GCLM).
+aggregate. **Status:** ✅ Fixed (found on WorkbookA).
 
 ### `DATE(MIN(DATEPARSE(...)))` wrongly declined for a string-returning containing calc
 `DATE()`'s redundant-cast removal only trusted a bare field's resolved type or the CONTAINING
@@ -119,7 +119,7 @@ needed to prove the ARGUMENT (not the whole calc) is date-typed was in its own s
 **Fix:** `_is_date_returning_call` now also recognizes a single-argument `MIN`/`MAX` wrapping a
 (recursively) date-returning call — deliberately excluding Tableau's 2-argument `MIN(a,b)`
 "smaller of two values" shape, a different operation this must not guess at. **Status:** ✅ Fixed
-(found on GCLM). **Verified live**: the exact stored formula evaluates to a real date-formatted
+(found on WorkbookA). **Verified live**: the exact stored formula evaluates to a real date-formatted
 string (`"Mar'22 - Jan'23"` embedded in the full label).
 
 ---

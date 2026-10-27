@@ -175,7 +175,7 @@ DEFAULT_ROWS = 20
 # Full, uncapped real data by default. A low default sample/cap looked like a reasonable
 # "quick build" convenience, but it has a real, repeat-confirmed cost: a sparse sample under-
 # represents the distinct dimension-value combinations a report's own slicers/visuals actually
-# need, so clicking almost any selector on a real workbook (confirmed on GCLM's Dormancy
+# need, so clicking almost any selector on a real workbook (confirmed on WorkbookA's Dormancy
 # Management tab) renders the majority of cards/visuals to (Blank) -- a defect that looks
 # exactly like a translation bug and isn't one. Pass a smaller --sample-pct/--max-real-rows
 # explicitly when a fast, lower-fidelity build is what's actually wanted.
@@ -354,7 +354,7 @@ def classify_source(source_block):
 _EPOCH = datetime.date(2024, 1, 1)
 
 # An Int64 column named like a flag ("CE Eligible - Flag", "Billable Deflection - Flag", ...) is
-# semantically 0/1, not a generic integer -- confirmed on a real corpus workbook (Prevent
+# semantically 0/1, not a generic integer -- confirmed on a real corpus workbook (WorkbookB
 # Dashboard): every one of 20 synthetic rows got 1001-1020 for a column literally named
 # "CE Eligible - Flag", so the Tableau-translated `IF([...Flag]=1, "X", IF([...Flag]=0, "Y",
 # BLANK()))` fell through to BLANK() on every row -- neither branch's condition was ever true.
@@ -391,7 +391,7 @@ def _col_seed(col_name):
     Why this exists: every branch below used to depend on the ROW index alone, so every column of
     a given type produced the IDENTICAL series -- `i % 2` for every `*- Flag`, `1000 + i` for
     every other Int64, `100.0 + i * 1.5` for every decimal. Opened in Desktop against a real
-    corpus workbook (Prevent Dashboard) that made every single measure on the page report the
+    corpus workbook (WorkbookB Dashboard) that made every single measure on the page report the
     same number: with all 20 rows of every flag alternating 1,0, every `SUM(<any flag>)` was
     exactly 10 and every rate `SUM(a)/SUM(b)` was exactly 1.00. Numbers that are all identical
     cannot show a reviewer whether a translated measure is right -- which is the entire point of
@@ -502,13 +502,13 @@ def coerce_hyper_value(value, mtype):
         return None
     if mtype == "text":
         # A hyper extract column physically stored as a float/double but author-overridden to
-        # Tableau's `datatype='string' datatype-customized='true'` (e.g. GCLM's own
+        # Tableau's `datatype='string' datatype-customized='true'` (e.g. WorkbookA's own
         # `qtr_rnk_flg`, raw DOUBLE values like 1.0 and 3.87096774) -- Tableau's own double-to-
         # string cast trims a trailing ".0" for a whole number ("1.0" displays/filters as "1"),
         # it does not carry Python's `str(float)` suffix through. A worksheet's own saved filter
         # member (`member='1'`) is captured verbatim from TABLEAU's string form, so sampling the
         # same column here with plain `str(value)` emits "1.0" -- never equal to the filter's "1"
-        # -- and silently zeroes every row the filter was ever meant to match. Confirmed on GCLM:
+        # -- and silently zeroes every row the filter was ever meant to match. Confirmed on WorkbookA:
         # Activation's "3.1 Portfolio Summary" cards (`For View`+`qtr_rnk_flg=1`) always blank,
         # even though real rows with the underlying value 1.0 exist. Only a WHOLE-number float
         # is reformatted -- a genuine fractional value (3.87096774) is untouched, since Tableau's
@@ -724,7 +724,7 @@ class RealDataResolver:
             # `max_rows <= 0` means "no cap" (see --max-real-rows's own help text) -- omit the
             # LIMIT clause entirely rather than passing a sentinel THROUGH to SQL, where
             # `LIMIT 0` means "zero rows", the opposite of uncapped. Confirmed this cap was
-            # reachable on a real corpus workbook (GCLM): two tables sampled 100% but still
+            # reachable on a real corpus workbook (WorkbookA): two tables sampled 100% but still
             # truncated to the default 10,000-row cap out of 247,425 real rows (4%) -- several
             # categorical values a card's own filter depended on existed only in the TRUNCATED
             # 96% of real rows, so a correctly-exact-match filter (no translation bug at all)
