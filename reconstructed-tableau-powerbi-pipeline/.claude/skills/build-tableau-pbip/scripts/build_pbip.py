@@ -194,7 +194,7 @@ def preflight(root, model_dir, report_dir, na):
             # -- a data-bound visual with an empty field well renders as a blank rectangle,
             # with none of Desktop's own "add data to this visual" affordance to say why.
             # `pbir.py`'s own `_visual` now declines a visual in exactly this shape instead of
-            # emitting it (found on the NGPO Dashboard corpus workbook: 164 such visuals, via
+            # emitting it (found on the WorkbookC corpus workbook: 164 such visuals, via
             # `tools/pbip_rules/checks.py`'s independent RPT-ROLE-02 check) -- this is the build's
             # OWN backstop for the same invariant, so a regression in the generator is caught
             # here too, not only by the external lint pass.
@@ -208,7 +208,7 @@ def preflight(root, model_dir, report_dir, na):
                          f"any role -- renders as a blank rectangle in Desktop with no "
                          f"indication which field is missing (RPT-ROLE-02)")
                 # -- a role with more fields than its well physically accepts. Found on a real
-                # rebuilt workbook (PVT Monthly Report, "Europe Report Status" pie chart): two
+                # rebuilt workbook (WorkbookF, "Region Rpt Status" pie chart): two
                 # dimensions on the source worksheet's Rows shelf (ordinary, valid Tableau) both
                 # landed in a pieChart's `Category` well, which Desktop caps at 1 -- schema-valid
                 # PBIR that `tools/pbip_lint.py --schemas`'s independent RPT-ROLE-03-style check
@@ -249,8 +249,8 @@ def preflight(root, model_dir, report_dir, na):
                  f"are unique MODEL-WIDE")
 
     # -- within a table, column/measure names collide CASE-INSENSITIVELY --
-    # TOM's own name collection ignores case (Windows/SQL Server convention), so 'BIC Compliance
-    # Check' and 'Bic Compliance Check' are the SAME name to it even though they are different
+    # TOM's own name collection ignores case (Windows/SQL Server convention), so 'SAMPLE CHECK ALPHA
+    # ' and 'Sample Check Alpha' are the SAME name to it even though they are different
     # Python strings. names.py's own collision avoidance is fixed to compare the same way; this
     # is the backstop that catches it if that ever regresses -- a real corpus workbook had
     # exactly this pair (a physical column and a same-named calculated-field copy) and Desktop
@@ -311,7 +311,7 @@ def preflight(root, model_dir, report_dir, na):
     # Same rule, the BARE `[Name]` shape. Measures are unique model-wide (names.py's own contract),
     # so a bare reference that matches ANY measure anywhere is a violation regardless of which table
     # the calculated column lives in. Missing this let a real workbook (WorkbookB Dashboard) emit
-    # 'cl.Is Selected Slice By?' as a calculated COLUMN referencing a parameter's SELECTEDVALUE
+    # 'cl.Is Selected Selector?' as a calculated COLUMN referencing a parameter's SELECTEDVALUE
     # measure via the bare form `resolve_param` always uses -- the qualified-only check above never
     # saw it, the model loaded, and every report filter on that column failed in Desktop with
     # "Broken_Filters" instead of a load-time error. `tmdl.py`'s `_aggregate_map` now promotes any
@@ -337,9 +337,9 @@ def preflight(root, model_dir, report_dir, na):
     # that ever regresses this is what would let SUM(measure) reach TMDL again. Desktop does not
     # reject the model at load: it fails per-visual, once opened, with "Fields that need to be
     # fixed ... cannot be found or may not be used in this expression", Underlying Error
-    # Missing_References. Confirmed on a real workbook (Caribbean - Drilldown (QBR),
-    # `Gross Trx Amt Decline Rate` = `DIVIDE(SUM('caribbean'[Gross Trx Amt Declined]), ...)`,
-    # where `Gross Trx Amt Declined` has no aggregate of its own and was promoted to a measure by
+    # Missing_References. Confirmed on a real workbook (WorkbookD,
+    # `Amount Decline Rate` = `DIVIDE(SUM('tbl_d'[Amount Declined]), ...)`,
+    # where `Amount Declined` has no aggregate of its own and was promoted to a measure by
     # `_aggregate_map`'s fixpoint) -- confirmed corpus-wide across 3 of 6 reference workbooks (135
     # instances) before `dax.py`'s `func_call` was fixed to decline this shape instead of
     # emitting it.
@@ -553,7 +553,7 @@ def _column_dax_refs(model_dir, table):
     """
     out = {}
     tdir = os.path.join(model_dir, "definition", "tables")
-    # Table names can contain characters a filename cannot ("Volume/Txns" is a real corpus table).
+    # Table names can contain characters a filename cannot ("Count/Items" is a real corpus table).
     # `tmdl_mod._safe_file` is the ONE function that maps a table name to its filename -- reused
     # here rather than duplicated, so the two can never drift apart.
     fn = os.path.join(tdir, f"{tmdl_mod.TmdlModel._safe_file(table)}.tmdl")
@@ -621,7 +621,7 @@ def _member_agg_bare_refs(model_dir, table):
     itself be a measure -- SUM('Table'[PromotedMeasure]) -- which is invalid DAX (aggregate
     functions require a column argument) and which Desktop only reports once a user opens the
     affected visual, as Missing_References. See the caller in `preflight()` for the real Desktop
-    error this backstops, confirmed on a real workbook (Caribbean - Drilldown (QBR)).
+    error this backstops, confirmed on a real workbook (WorkbookD).
     """
     out = {}
     tdir = os.path.join(model_dir, "definition", "tables")

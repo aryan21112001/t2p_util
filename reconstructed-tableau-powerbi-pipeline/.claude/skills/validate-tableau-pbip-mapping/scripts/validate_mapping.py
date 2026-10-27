@@ -146,18 +146,18 @@ FIX_RULES = [
                "IF(ISBLANK([x]), <null-branch>, <non-null-branch>) instead of a literal NULL "
                "substitution."),
 
-    (re.compile(r"unresolved field reference \[tokn_(\w+)\] -- no field by that name is defined"),
+    (re.compile(r"unresolved field reference \[tok_(\w+)\] -- no field by that name is defined"),
      lambda m: (
         f"CHECK FOR A NAMING-MISMATCH BUG IN THE SOURCE TABLEAU WORKBOOK before treating this as "
-        f"a normal rename/delete: a 'tokn_' prefix on an otherwise-ordinary field name "
-        f"([tokn_{m.group(1)}]) is a known real-corpus signature of a calc formula that was "
+        f"a normal rename/delete: a 'tok_' prefix on an otherwise-ordinary field name "
+        f"([tok_{m.group(1)}]) is a known real-corpus signature of a calc formula that was "
         f"copy-pasted from a worksheet built against a DIFFERENT table (one that legitimately "
-        f"has a 'tokn_'-prefixed column, e.g. a token/masked-value convention) onto THIS table, "
+        f"has a 'tok_'-prefixed column, e.g. a token/masked-value convention) onto THIS table, "
         f"without updating the field reference to match this table's own naming. VERIFY by "
         f"checking whether this table already has a column named exactly '[{m.group(1)}]' "
         f"(same suffix, no prefix) -- if it does, this is almost certainly the bug, and the fix "
         f"is FIX IN TABLEAU FIRST, not in Power BI: open the workbook, edit this calculated "
-        f"field, and replace every '[tokn_{m.group(1)}]' with '[{m.group(1)}]', then re-run this "
+        f"field, and replace every '[tok_{m.group(1)}]' with '[{m.group(1)}]', then re-run this "
         f"build (Tableau itself would already be showing this exact field broken in Desktop, "
         f"independent of any migration). If no matching unprefixed column exists on this table, "
         f"this is instead a genuine missing-field problem -- fall back to the general "
@@ -468,7 +468,7 @@ def _na_key(caption, tableau_name):
 # ================================================= identifier dereferencing
 # Tableau formulas reference other objects by opaque internal identity, not by the caption a
 # Tableau user actually sees: `[Parameters].[Parameter 15]` for a parameter, or
-# `[Sample Countryregion C (copy)_739153350486216704]` for a field Tableau auto-suffixed with a
+# `[Sample Zonearea C (copy)_153954555233343539]` for a field Tableau auto-suffixed with a
 # generated id (duplicated/"(copy)" fields get this). Both identities, and their real captions,
 # already exist in ir.json -- this is a lookup, not an inference, so it stays fail-closed: an
 # identity this workbook does not define is left exactly as written, never guessed at.
@@ -585,9 +585,9 @@ def find_case_collisions(names_by_table):
     """Per table, any two names that differ only by case.
 
     TOM's own name collection ignores case (Windows/SQL Server convention) -- a real corpus
-    workbook had a physical column `Bic Compliance Check` and a calculated-field copy of it
-    captioned `BIC Compliance Check`, and Desktop refused to open the file AT ALL: "Item 'BIC
-    Compliance Check' already exists in the collection." Worse than one wrong visual -- a hard
+    workbook had a physical column `Sample Check Alpha` and a calculated-field copy of it
+    captioned `SAMPLE CHECK ALPHA`, and Desktop refused to open the file AT ALL: "Item 'SAMPLE CHECK ALPHA
+    ' already exists in the collection." Worse than one wrong visual -- a hard
     load failure. The root cause (`names.py`'s collision check compared case-sensitively) is
     fixed, but this check would catch the whole class again if it ever regressed: it reads the
     same real names this script already parses out of the TMDL for the dangling-reference check,
@@ -1107,32 +1107,32 @@ if __name__ == "__main__":
         assert w is not None and "'T'[z]" in w, w
         w = static_dax_warning("[Missing Measure] + 1", names_by_table, all_measures)
         assert w is not None and "[Missing Measure]" in w, w
-        coll = find_case_collisions({"T": {"Bic Compliance Check", "BIC Compliance Check"},
+        coll = find_case_collisions({"T": {"Sample Check Alpha", "SAMPLE CHECK ALPHA"},
                                       "U": {"Region", "region"}})
         assert len(coll) == 2, coll
         assert find_case_collisions({"T": {"Region", "Sales"}}) == []
 
         # identifier dereferencing -- real shapes from a real corpus workbook: a parameter
         # ("Parameter 15" -> caption "Region - Parameter") and an auto-suffixed duplicate field
-        # ("...(copy)_739153350486216704" -> caption "Region").
+        # ("...(copy)_153954555233343539" -> caption "Region").
         test_ir = {
             "parameters": [{"name": "Region - Parameter", "tableau_name": "[Parameter 15]"}],
             "tables": [{"caption": "Data", "tableau_name": "Data", "calcs": [
                 {"name": "Region",
-                 "tableau_name": "[Sample Countryregion C (copy)_739153350486216704]"}],
+                 "tableau_name": "[Sample Zonearea C (copy)_153954555233343539]"}],
                 "columns": []}],
         }
         imap = build_identity_map(test_ir)
         assert imap["Parameter 15"] == {"caption": "Region - Parameter", "kind": "parameter",
                                          "table": ""}
-        assert imap["Sample Countryregion C (copy)_739153350486216704"]["caption"] == "Region"
+        assert imap["Sample Zonearea C (copy)_153954555233343539"]["caption"] == "Region"
 
         usage = collections.Counter()
         out = dereference_formula(
-            "[Parameters].[Parameter 15] = [Sample Countryregion C (copy)_739153350486216704] "
+            "[Parameters].[Parameter 15] = [Sample Zonearea C (copy)_153954555233343539] "
             "OR [Parameters].[Parameter 15]= 'Global'", imap, usage)
         assert out == "[Region - Parameter] = [Region] OR [Region - Parameter]= 'Global'", out
-        assert usage["Parameter 15"] == 2 and usage["Sample Countryregion C (copy)_739153350486216704"] == 1
+        assert usage["Parameter 15"] == 2 and usage["Sample Zonearea C (copy)_153954555233343539"] == 1
 
         # an identity this workbook doesn't define is left exactly as written -- fail closed.
         assert dereference_formula("[Parameters].[Parameter 99]", imap) == "[Parameters].[Parameter 99]"

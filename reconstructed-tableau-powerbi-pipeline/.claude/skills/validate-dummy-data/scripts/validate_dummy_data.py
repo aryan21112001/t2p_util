@@ -487,7 +487,7 @@ def _self_test():
         'let\n'
         'Source = Excel.Workbook(File.Contents("/tmp/x/Foo_dummy_data.xlsx"), true),\n'
         'Sheet = Source{[Item="Sheet1",Kind="Sheet"]}[Data],\n'
-        'Typed = Table.TransformColumnTypes(Sheet, {{"Acct Prod Id", type text}, '
+        'Typed = Table.TransformColumnTypes(Sheet, {{"Rec Item Id", type text}, '
         '{"Cnt", Int64.Type}})\n'
         'in\n'
         'Typed'
@@ -496,7 +496,7 @@ def _self_test():
     assert parsed is not None
     assert parsed["desktop_path"] == "/tmp/x/Foo_dummy_data.xlsx", parsed
     assert parsed["sheet"] == "Sheet1", parsed
-    assert parsed["columns"] == ["Acct Prod Id", "Cnt"], parsed
+    assert parsed["columns"] == ["Rec Item Id", "Cnt"], parsed
 
     # ---- parse_excel_wired: a stub/param/native shape (no Excel.Workbook at all) is None ----
     assert parse_excel_wired("let\nSource = Table.FromRows({}, type table [Foo = text])\nin\n"

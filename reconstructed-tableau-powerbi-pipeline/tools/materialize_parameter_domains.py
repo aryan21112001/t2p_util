@@ -13,7 +13,7 @@ But some of those "free-entry" parameters are not actually free-entry at all: th
 categorical switch that Tableau happens to model as a string parameter, and the ONLY reason
 its real domain isn't visible to the builder is that the domain lives implicitly in an
 IF/ELSEIF or CASE/WHEN comparison inside some OTHER calculated field's formula --
-e.g. `IF [Parameters].[pl.Lookup Type] = "Lookup Date" THEN ... ELSEIF ... = "CE Eligible
+e.g. `IF [Parameters].[pl.Lookup Type] = "Lookup Date" THEN ... ELSEIF ... = "Eligible
 Date" THEN ...`. Tableau's own parameter definition never lists "Lookup Date" as a member;
 Tableau just trusts the workbook author typed a value that some formula happens to test for.
 

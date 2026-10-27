@@ -69,7 +69,7 @@ route. **Status:** ✅ Fixed preventively.
 Unlike `dax.py`'s Parser, which already casts/declines a string-typed column aggregate for an
 EXPLICIT calc formula (see `04-dax-translation-gotchas.md`), the IMPLICIT shelf-measure path
 (a field dragged straight onto Rows/Cols with no calculated field) never got that treatment —
-`SUM('Activation'[issr_total_actv_crd_cy])` on a Tableau-STRING column reached TMDL as valid DAX
+`SUM('Beta'[total_metric_cy])` on a Tableau-STRING column reached TMDL as valid DAX
 that failed only at QUERY time. Confirmed live against real Desktop: `MdxScript(Model)...
 Calculation error ... The function SUM cannot work with values of type String`. **Fix:**
 `_plan_shelf_measures` now does the same local-then-global field-dtype lookup `_resolver()`
@@ -82,15 +82,15 @@ either checker for this specific shape; worth adding if it recurs.
 ### `resolve_measure_safe`'s SELECTEDVALUE-wrap fired even when the calc's real usage is `SUM(calc)` on a shelf
 `resolve_measure_safe` (two rows above) correctly wraps a bare column reference in `SELECTEDVALUE`
 for a parameter-promoted measure used as a genuine dimension-like "branch selection between whole
-columns" (its original `cl.Slice By` bug). But that fix applied BLANKET to every parameter-promoted
+columns" (its original `cl.Selector` bug). But that fix applied BLANKET to every parameter-promoted
 measure with no aggregate of its own — including one whose REAL Tableau usage, on its own
 worksheet shelf, is `SUM(calc)`. `SELECTEDVALUE` returns BLANK the instant more than one real row
 exists in context, which is always true for a bare row-level column aggregated by a real shelf
-SUM. Real corpus (WorkbookA), confirmed live against real Desktop: `Penetration` = `(IF
-[Parameters].[Opcert or User Input]="Opcert" THEN [issr_cif_cy] ... END) / [Parameters].[Retail
-Customers]`, shelf-used as `SUM(Penetration)` on its own worksheet, emitted as
-`DIVIDE(SELECTEDVALUE('Acquisition'[issr_cif_cy]), ...)` — BLANK against every real row, where
-Tableau's own shelf intent is `SUMX('Acquisition', DIVIDE([issr_cif_cy], ...))`, a real non-blank
+SUM. Real corpus (WorkbookA), confirmed live against real Desktop: `Share` = `(IF
+[Parameters].[Option or User Input]="Option" THEN [metric_b_cy] ... END) / [Parameters].[Group Entities
+]`, shelf-used as `SUM(Share)` on its own worksheet, emitted as
+`DIVIDE(SELECTEDVALUE('Alpha'[metric_b_cy]), ...)` — BLANK against every real row, where
+Tableau's own shelf intent is `SUMX('Alpha', DIVIDE([metric_b_cy], ...))`, a real non-blank
 number (confirmed `1.1668...` live post-fix). The Power BI card bound to this measure showed
 "(Blank)" against a real Tableau value. **Fix:** new `_shelf_agg_only(t)` method — `{calc fkey:
 DAX iterator function}` for every calc used EXCLUSIVELY, across every worksheet encoding
@@ -103,20 +103,20 @@ left bare — the iterator itself supplies the row context `SELECTEDVALUE` was t
 around. A calc used as a plain dimension reference (`agg=None`) anywhere, or with inconsistent
 aggregations across worksheets, is untouched — still takes the old `SELECTEDVALUE` path.
 **Status:** ✅ Fixed, self-tested (both the SUMX-inlining case and the no-regression dimension-
-reference case), confirmed live against a fresh rebuild (`EVALUATE ROW("x", [Penetration])` →
+reference case), confirmed live against a fresh rebuild (`EVALUATE ROW("x", [Share])` →
 `1.1668177500000003`, non-blank). Affects 28 calcs across 4 tables in WorkbookA alone
-(Recommendations 21, Operations Management 1, Acquisition 4, Usage Overview 1) — likely resolves
+(Gamma 21, Ops Sheet 1, Alpha 4, Overview Page 1) — likely resolves
 other "blank card" symptoms beyond the one that surfaced it. If you hit a blank card bound to a
 parameter-promoted measure, check whether its real Tableau usage is a shelf aggregate before
 assuming `resolve_measure_safe`'s path is still correct for it.
 
 **Shipping status (2026-10-06): fix confirmed correct, NOT YET merged into the canonical `out2`
-deliverable.** Live-verified in isolation (`[Penetration]` → `1.1668...`, non-blank) across two
+deliverable.** Live-verified in isolation (`[Share]` → `1.1668...`, non-blank) across two
 separate fresh rebuilds (`vf9`, `vf11`) — the DAX fix itself is good. Held back from `out2`
 because the SAME rebuilds that carry this fix also carry an unrelated, still-OPEN regression —
 see `01-orchestrator-gotchas.md`'s "fresh rebuild renders several barChart visuals with zero bars,
 no error" entry. Do not merge this fix into `out2` on its own until that's resolved; `out2` stays
-on its pre-fix state (Penetration blank, confirmed data bug, but every chart renders) until a
+on its pre-fix state (Share blank, confirmed data bug, but every chart renders) until a
 rebuild exists that has BOTH this fix AND working chart rendering.
 
 ### `_aggregate_map`'s own seed missed a bracketed-field-name false positive — see `is_aggregate()`

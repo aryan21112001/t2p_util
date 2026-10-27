@@ -25,7 +25,7 @@ class Unsupported(Exception):
 TOKEN_RE = re.compile(r"""
     (?P<ws>\s+)
     # `/* ... */` BLOCK comments, not just `//` line comments -- real corpus regression
-    # (10000056_achc_WF_Payments_Insights): `bps_amt rate V2`'s formula is an ordinary
+    # (WorkbookJ): `bps_amt rate V2`'s formula is an ordinary
     # IF/THEN/ELSE/END with a `/*then [Amt Rate V2]*10000*/` comment sitting between THEN and
     # the real expression -- ONLY the comment blocked it, the `*` inside `*/` fell through to
     # the `other` catch-all and declined the whole calc with "unexpected character '*'". `.`
@@ -40,8 +40,8 @@ TOKEN_RE = re.compile(r"""
     # documented syntax for a hard-coded date, and unambiguous -- `#` has no other meaning in the
     # expression language, which is why the `other` catch-all below was rejecting the whole
     # formula with "unexpected character '#'". Matched BEFORE `num` so the digits inside are not
-    # lexed as separate numbers. Real corpus instance (WorkbookB Dashboard, `Originated From Data
-    # Center`): `[Lookup Date] >= #2022-07-01#` -- one unhandled literal declined an entire
+    # lexed as separate numbers. Real corpus instance (WorkbookB Dashboard, `Origin Flag
+    # `): `[Lookup Date] >= #2022-07-01#` -- one unhandled literal declined an entire
     # otherwise-translatable calc.
   | (?P<datelit>\#[^\#]+\#)
   | (?P<num>\d+\.?\d*(?:[eE][+-]?\d+)?)
@@ -110,7 +110,7 @@ FUNCS = {
     # semantic equivalent (Unicode code point -> character). Mapping to "CHAR" verbatim produced
     # DAX Desktop rejects at load with "Failed to resolve name 'CHAR'. It is not a valid table,
     # variable, or function name" -- real corpus regression, WorkbookA_v2's
-    # `Seg_spnd_f6_concat`/`Seg_spnd_l6_concat` (`[a] + CHAR(10) + [b]`, a newline-joined label).
+    # `Seg_concat_a`/`Seg_concat_b` (`[a] + CHAR(10) + [b]`, a newline-joined label).
     "ASCII": "UNICODE", "CHAR": "UNICHAR",
     # Tableau MAKEDATE(year, month, day) is DAX DATE(year, month, day), verbatim -- same argument
     # order, same day/month-rollover semantics in both languages.
@@ -158,7 +158,7 @@ DATENAME_DAX = {
 # -- extract.py surfaces it per table, defaulting to Tableau's own product default ("sunday")
 # when a workbook never overrides it. Previously DATEPART('weekday',...)/DATETRUNC('week',...)
 # always declined here on the theory that this setting was unrecoverable; it is not -- it was
-# simply never read. Ground truth: WorkbookB Dashboard's "Rolling 7 Day Start/End" family, ~9
+# simply never read. Ground truth: WorkbookB Dashboard's "Rolling Window Start/End" family, ~9
 # calcs (plus everything downstream of them) declined for exactly this reason despite the
 # workbook's own XML stating start-of-week='sunday' outright.
 WEEKDAY_START_OFFSET = {
@@ -250,7 +250,7 @@ _DATE_RETURNING_FUNCS = {"DATE", "DATEADD", "DATETRUNC", "DATEPARSE"}
 # VALUE's meaning is ambiguous for those units). Used by STR()'s type-check the same way
 # `_DATE_RETURNING_FUNCS` is: an integer wrapped in STR() has zero locale/date-format ambiguity
 # (unlike STR(<date>)), so it is strictly SAFER to translate than the date-returning case, not
-# harder -- ground truth (WorkbookB Dashboard) `Date Range Text` = `STR(DATEPART('day', d))`.
+# harder -- ground truth (WorkbookB Dashboard) `Range Label` = `STR(DATEPART('day', d))`.
 _INTEGER_RETURNING_FUNCS = {"YEAR", "MONTH", "DAY", "DATEDIFF", "DATEPART"}
 
 
@@ -312,7 +312,7 @@ class Parser:
         self.i = 0
         self.resolve = resolve                  # (tableau_field_name) -> DAX ref, or None
         self.resolve_param = resolve_param      # (tableau_param_name) -> DAX ref, or None
-        # The already-resolved DAX column reference (e.g. "'T'[Topic Area]") for THIS calc's own
+        # The already-resolved DAX column reference (e.g. "'T'[Group Area]") for THIS calc's own
         # extracted "Restart every: <field>" table-calc partition, or None. Only RANK/RANK_DENSE
         # use it (see func_call) -- every other table-calc function still declines exactly as
         # before regardless of this value, since only those two map onto RANKX's own native
@@ -340,9 +340,9 @@ class Parser:
         # one place that actually knows, can. Without this hook, SUM() of a promoted measure looks
         # exactly like SUM() of an ordinary column at parse time and is emitted verbatim, which is
         # invalid DAX (SUM/aggregate functions require a column argument) and fails at Desktop load
-        # with Missing_References -- confirmed on a real workbook (Caribbean - Drilldown (QBR),
-        # `Gross Trx Amt Decline Rate` = DIVIDE(SUM([Gross Trx Amt Declined]), ...) where
-        # `Gross Trx Amt Declined` has no aggregate of its own and was promoted to a measure by
+        # with Missing_References -- confirmed on a real workbook (WorkbookD,
+        # `Amount Decline Rate` = DIVIDE(SUM([Amount Declined]), ...) where
+        # `Amount Declined` has no aggregate of its own and was promoted to a measure by
         # `_aggregate_map`'s fixpoint).
         self.resolve_kind = resolve_kind
         # (tableau_field_name) -> that field's OWN raw Tableau formula text, or None. Only the
@@ -423,7 +423,7 @@ class Parser:
         from the Tableau SOURCE shape itself, not from `last_field`'s (unreliable, see STR()'s
         own comment) inferred type; also used by DATE()'s own redundant-cast check below.
 
-        Real corpus (WorkbookA): `DATE(MIN(DATEPARSE("yyyyMM", [mnth_yr])))` -- `DATEPARSE(...)` is
+        Real corpus (WorkbookA): `DATE(MIN(DATEPARSE("yyyyMM", [period_code])))` -- `DATEPARSE(...)` is
         already proven date-returning, `MIN(<that>)` preserves it, so the outer `DATE(...)` is a
         redundant cast with no bare field/literal/own_type signal to trust otherwise, declined
         before this fix even though every piece of information needed to prove it is right here
@@ -568,7 +568,7 @@ class Parser:
         literal string operand (`"|"`) -- unambiguous by itself; (2) a bare column reference
         whose Tableau-declared datatype IS "string" -- also unambiguous, since Tableau itself
         already decided this field is text, not a translation-time guess. Real corpus regression
-        (WorkbookA_v2's `Seg_spnd_f6_concat` = `[first6months] + CHAR(10) +
+        (WorkbookA_v2's `Seg_concat_a` = `[firstN] + CHAR(10) +
         [first_6_month_cutoff]`, both operands plain string columns, no literal anywhere in the
         chain) previously fell through to plain `+`: DAX loaded fine (syntactically valid) and
         then errored at query time trying to add two text values. Once one side of a `+`-chain is
@@ -735,7 +735,7 @@ class Parser:
         A bare `{expr}` -- no FIXED/INCLUDE/EXCLUDE keyword at all -- is Tableau's OTHER legal use
         of braces: scope `expr` to the whole table, ignoring the view's filters, with no grouping
         key. This is exactly the FIXED-with-zero-keys case below, just spelled without the
-        keyword. Confirmed on a real corpus workbook (Digital Sales - Leads Dashboard):
+        keyword. Confirmed on a real corpus workbook (WorkbookH):
         `{[End Date Calc]}` and `{DATE(IF DATETRUNC('day', max(...))=... THEN ... END)}`, both a
         scalar/aggregate pinned to table scope, neither a genuine grouping-key LOD.
         """
@@ -857,8 +857,8 @@ class Parser:
         # a literal text string, not an actual typed null). Also fixes a latent bug for any
         # ALREADY-mapped single-arg cast (e.g. `INT('NULL')`) that would otherwise reach its
         # normal FUNCS mapping and emit invalid/wrong DAX (`INT("NULL")` is not a valid numeric
-        # cast of literal text). Real corpus (WorkbookA): `IF [Parameters].[Opcert or User Input] =
-        # 'Opcert' THEN FLOAT('NULL') ELSE <real expression> END` -- FLOAT has no DAX equivalent
+        # cast of literal text). Real corpus (WorkbookA): `IF [Parameters].[Option or User Input] =
+        # 'Option' THEN FLOAT('NULL') ELSE <real expression> END` -- FLOAT has no DAX equivalent
         # at all, so this was declined outright before, even though the whole call is just a
         # typed-null placeholder.
         if len(args) == 1 and args[0].strip().strip('"').upper() == "NULL":
@@ -882,8 +882,8 @@ class Parser:
             # exactly why every OTHER table calc still declines); it is threaded in from outside
             # as `self.tc_partition`, already resolved to a real same-table DAX column reference
             # by tmdl.py's `route()` before this parse ever runs, from extract.py's own captured
-            # `level-break` attribute. Ground truth: NGPO Dashboard New - AP Version (MSC), whose
-            # `Rank - Topic Area` field has `ordering-type="Field"` and
+            # `level-break` attribute. Ground truth: WorkbookC, whose
+            # `Rank - Group Area` field has `ordering-type="Field"` and
             # `level-break="[...].[topic_area]"` in the raw XML.
             if not (1 <= len(args) <= 2):
                 raise Unsupported(f"{up} expects (expression, ['asc'|'desc'])")
@@ -954,7 +954,7 @@ class Parser:
             # DATE()/TIME() over MID() -- and that is locale-INDEPENDENT, unlike DATEVALUE(), whose
             # reading of "01/07/2022" depends on the model's locale. Every real use of this in the
             # corpus is the single format 'yyyy-MM-dd' (24 occurrences in WorkbookB Dashboard alone),
-            # and it was the knot blocking that workbook's whole "Rolling 7 Day" calc family:
+            # and it was the knot blocking that workbook's whole "Rolling Window" calc family:
             # 12 calcs declined on DATEPARSE directly and ~25 more only because they referenced one
             # of those.
             #
@@ -1099,8 +1099,8 @@ class Parser:
             # specified format". Every VALUE(MID(...)) call above throws instead: DAX's VALUE()
             # errors on non-numeric text, and a hard error here doesn't just blank one cell, it
             # fails the WHOLE COLUMN's load ("Cannot convert value '' of type Text to type
-            # Number" -- real corpus regression, WorkbookA_v2's `Usage
-            # Overview`, blank real-data rows in `mnth_yr`). IFERROR(..., BLANK()) matches
+            # Number" -- real corpus regression, WorkbookA_v2's `Overview Page
+            # `, blank real-data rows in `period_code`). IFERROR(..., BLANK()) matches
             # Tableau's own graceful-NULL behavior exactly, for ANY failure mode, not just a
             # blank string -- the valid-input case is completely unaffected.
             return f"IFERROR({full_expr}, BLANK())"
@@ -1117,8 +1117,8 @@ class Parser:
             # call to a function this translator already proves returns a date (DATE/DATEADD/
             # DATETRUNC/DATEPARSE), regardless of what `last_field` happens to point at deep
             # inside its own arguments. Checking (2) from the RAW TOKENS rather than `dt` is what
-            # makes this exact and not a guess: ground truth (WorkbookB Dashboard) `cl.Rolling 7
-            # Day End - Lookups` is `STR(DATE(dateadd('day', 6, [Calculation_...])))`, whose
+            # makes this exact and not a guess: ground truth (WorkbookB Dashboard) `cl.Rolling Window
+            #  End - Lookup` is `STR(DATE(dateadd('day', 6, [Calculation_...])))`, whose
             # `last_field` resolves to `[Calculation_...]` (a plain source date column, not
             # itself provably date-typed by name), yet the call shape alone proves the argument
             # is a date.
@@ -1143,8 +1143,8 @@ class Parser:
             # rewrite at all -- `& ""` is already exact for it. Checked BEFORE the decline check
             # below on purpose: `last_field` for `STR(YEAR([Date]))` resolves to `[Date]` (date-
             # typed), which would otherwise trip that check even though YEAR()'s actual return
-            # value is an integer, not a date -- ground truth (WorkbookB Dashboard) `Date Range
-            # Text` = `STR(DATEPART('day', [Date Range Start Date]))`.
+            # value is an integer, not a date -- ground truth (WorkbookB Dashboard) `Range Label
+            # ` = `STR(DATEPART('day', [Date Range Start Date]))`.
             if arg_spans and self._is_integer_returning_call(*arg_spans[0]):
                 return f'({arg0} & "")'
             # `self.last_field` is the last BRACKETED FIELD TOKEN seen while parsing the
@@ -1183,7 +1183,7 @@ class Parser:
             # already gets above. Relying on DATEVALUE()'s locale-dependent text parsing here
             # would risk the exact day/month transposition that pattern exists to avoid; reading
             # the digits straight out of the literal has no such ambiguity. Real corpus shape
-            # (Digital Sales - Leads Dashboard, `Lead Create Date for flag`): DATE("2025-05-01").
+            # (WorkbookH, `Create Date for flag`): DATE("2025-05-01").
             m = re.match(r'^"(\d{4})-(\d{1,2})-(\d{1,2})"$', args[0].strip())
             if m:
                 y, mo, d_ = int(m.group(1)), int(m.group(2)), int(m.group(3))
@@ -1193,8 +1193,8 @@ class Parser:
             if dt in ("date", "dateTime") and _BARE_COLUMN.match(args[0].strip()):
                 # Casting an already date-typed field to a date is a no-op; DAX has no
                 # cast-to-date function to spell that with, so the unwrapped expression IS the
-                # DAX. Confirmed on a real corpus workbook: DATE([App Actualend]) where
-                # [App Actualend] is dateTime-typed in the model.
+                # DAX. Confirmed on a real corpus workbook: DATE([Date Field Z]) where
+                # [Date Field Z] is dateTime-typed in the model.
                 return args[0]
             if dt in ("string", "int", "real") and _BARE_COLUMN.match(args[0].strip()):
                 # A text/numeric argument: Tableau's DATE(string) parses a date-like string.
@@ -1215,7 +1215,7 @@ class Parser:
                 # same DATEVALUE() rewrite as the bare-string-typed-field branch just above, just
                 # proven here from the DAX SHAPE itself rather than a single field's declared
                 # type, which is what a parameter-derived string (not a bare field) needs. Ground
-                # truth: WorkbookB Dashboard's `cl.Anchor Date`, one ELSEIF branch
+                # truth: WorkbookB Dashboard's `cl.Base Date`, one ELSEIF branch
                 # `DATE([Parameters].[Parameter 14] + "-01")` -- a Year-Month parameter's selected
                 # value with "-01" appended, an unambiguous ISO yyyy-MM-dd shape once
                 # concatenated, checked ahead of the `own_type` branch below so a NESTED
@@ -1238,8 +1238,8 @@ class Parser:
                 # field/parameter references or DATEADD/DATETRUNC calls), not a real cast -- and
                 # DAX's own DATE() has no cast-to-date spelling to preserve it with. This is a fact
                 # RELAYED from Tableau's own validated type inference for this exact formula, not
-                # an inference made here. Ground truth: WorkbookB Dashboard's `cl.Anchor Date` /
-                # `cl.Current Period - Start Date` / `- End Date`, each `DATE(IF ... END)`.
+                # an inference made here. Ground truth: WorkbookB Dashboard's `cl.Base Date` /
+                # `cl.Active Period - Start Date` / `- End Date`, each `DATE(IF ... END)`.
                 return arg0
             raise Unsupported(
                 "DATE(<expression>) with an unresolved or non-bare-field argument type -- "
@@ -1438,9 +1438,9 @@ class Parser:
         # (promoted-measure re-aggregation, string-typed-column cast) missed this shape entirely
         # and fell through to the generic aggregate-over-expression branch, which has no type
         # awareness -- passing the string-typed column straight through uncast. Real corpus
-        # regression: WorkbookA_v2's Activation.'Activation Rate_issr' =
-        # `AVG([issr_actv_crds_cy])/AVG(([issr_total_actv_crd_cy]))`, where `issr_total_actv_crd_cy`
-        # is Tableau-declared `string` -- emitted `AVERAGEX('Activation', ('Activation'[...]))`
+        # regression: WorkbookA_v2's Beta.'Rate_x' =
+        # `AVG([metric_cy])/AVG(([total_metric_cy]))`, where `total_metric_cy`
+        # is Tableau-declared `string` -- emitted `AVERAGEX('Beta', ('Beta'[...]))`
         # with no VALUE() cast, and Desktop errored at query time: "The function AVERAGEX cannot
         # work with values of type String". Unwrapping here, once, lets every later check treat
         # this exactly like an un-parenthesized bare column -- the two are semantically identical.
@@ -1494,8 +1494,8 @@ class Parser:
             # in context, UNLIKE a numeric literal embedded in a real per-row calculated column
             # (where SUM genuinely means "repeat and add" -- a true parameter has no rows to repeat
             # over in the first place, so even SUM is a safe identity here, not just AVG/MIN/MAX).
-            # Real corpus (WorkbookA): `Target_crds_aqsn`'s `ELSE AVG([Parameters].[User Input Cards in
-            # Force CY (copy)])END` -- a parameter resolved to a bare `[... Selected]` measure
+            # Real corpus (WorkbookA): `Target_metric_x`'s `ELSE AVG([Parameters].[User Input Items Active CY (copy)
+            # ])END` -- a parameter resolved to a bare `[... Selected]` measure
             # reference, 0 tables, previously declined outright regardless of which aggregate
             # function was used.
             is_bare_measure = not tables and _BARE_MEASURE_REF.match(args[0].strip())
@@ -1532,8 +1532,8 @@ class Parser:
         # invalid DAX: aggregate functions require a column argument, and DAX resolves the
         # bracketed name by looking for a COLUMN of that name in the table, finds none (only a
         # measure), and Desktop rejects the whole report page at load with Missing_References.
-        # Confirmed on a real workbook (Caribbean - Drilldown (QBR), `Gross Trx Amt Decline Rate`
-        # = DIVIDE(SUM([Gross Trx Amt Declined]), ...) where `Gross Trx Amt Declined` has no
+        # Confirmed on a real workbook (WorkbookD, `Amount Decline Rate`
+        # = DIVIDE(SUM([Amount Declined]), ...) where `Amount Declined` has no
         # aggregate of its own and was promoted to a measure elsewhere in the fixpoint).
         #
         # The semantically correct DAX would inline the referenced calc's own row-level expression
@@ -1583,8 +1583,8 @@ class Parser:
         # a numeric-looking string field to a number wherever a calculation needs one, INCLUDING
         # inside SUM()/AVG() -- but DAX's SUM()/AVERAGE() require the argument COLUMN to already
         # be numeric and error at QUERY TIME otherwise. Real corpus regression (WorkbookA_
-        # v2, `Activation`.'Issuer YoY Growth' = ... SUM([issr_actv_crds_py]) ...,
-        # where Tableau itself declares `issr_actv_crds_py`'s datatype "string" even though every
+        # v2, `Beta`.'Growth Rate A' = ... SUM([metric_py]) ...,
+        # where Tableau itself declares `metric_py`'s datatype "string" even though every
         # real value is a plain digit string): Desktop's own error is "The function SUM cannot
         # work with values of type String" -- an MdxScript RUNTIME error, invisible to any
         # load-time/preflight check, exactly like the DATEPARSE blank-string case elsewhere in
@@ -1628,11 +1628,11 @@ class Parser:
         expression, or None if this particular case genuinely cannot be recovered (the caller
         then falls back to its own original decline).
 
-        Ground truth (Caribbean - Drilldown (QBR)): the outer calc is
-        `CASE [Parameters].[Parameter 1] WHEN "Gross Data" THEN sum([Gross Trx Amt Approved]) ...`
-        -- `Gross Trx Amt Approved` = `IF [Approved/Declined]='Approved' THEN
-        ([Gross Trx Amt Us Total]) ELSE 0 END`, which has NO aggregate function of its own and
-        became a measure ONLY because it transitively references `Auth Response Name`, whose own
+        Ground truth (WorkbookD): the outer calc is
+        `CASE [Parameters].[Parameter 1] WHEN "Raw Data" THEN sum([Amt Approved]) ...`
+        -- `Amt Approved` = `IF [Approved/Declined]='Approved' THEN
+        ([Amt Total A]) ELSE 0 END`, which has NO aggregate function of its own and
+        became a measure ONLY because it transitively references `Response Name`, whose own
         formula reads `[Parameters].[Parameter 7]` (a parameter reference is the SAME
         measure-promotion hazard as an aggregate, per `_aggregate_map`'s docstring). There is
         nothing to actually re-aggregate here -- `x` is a plain per-row calculation Tableau would
@@ -1652,7 +1652,7 @@ class Parser:
         `SUM`, say) cannot be safely collapsed without re-deriving a grain this parser has no way
         to see, so it is left declined rather than guessed at.
 
-        A third sub-case, found on a real corpus workbook (NGPO Dashboard New - AP Version (MSC),
+        A third sub-case, found on a real corpus workbook (WorkbookC,
         17 fields, e.g. `Waterfall - Min Quarter/Year Value (copy)_...`): `x` is a level-of-detail
         expression, `{FIXED [keys]: sum(...)}`, which `is_aggregate()` textually flags as "already
         a full aggregate" (it contains a literal `sum(` call) even though it is NOT one in the
@@ -1713,9 +1713,9 @@ def is_aggregate(formula):
     just string literals -- a real Tableau function call always appears OUTSIDE `[...]`
     brackets, so bracket contents can never legally contain one. Without this, a field whose
     DISPLAY NAME merely contains an aggregate-like word followed by `(` -- e.g.
-    `[Card Count (copy)_123]` -- false-positives on `\bCOUNT\s*\(` even though "Count (" here
+    `[Item Count (copy)_123]` -- false-positives on `\bCOUNT\s*\(` even though "Count (" here
     is part of a field NAME, not a function invocation. Confirmed on a real corpus workbook
-    (NGPO Dashboard New - AP Version (MSC)): `[issuer value]*[Card Count (copy)_...]` has no
+    (WorkbookC): `[value a]*[Item Count (copy)_...]` has no
     real aggregate call at all, but was misclassified as one, promoting a plain row-level
     product to a DAX MEASURE with two bare column references and zero row context -- Desktop's
     "Missing_References" / "a single value ... cannot be determined".
@@ -1726,16 +1726,16 @@ def is_aggregate(formula):
     at its own fixed grain, then returns to row level, exactly like a bare column reference from
     the outer expression's point of view (same fact `_collapse_promoted_aggregate`'s own `is_lod`
     check already relies on, there for a referenced field's formula rather than the top-level one
-    this function sees). Confirmed on a real corpus workbook (WorkbookA), `Dor_Contri_tot_vol` =
-    `[l12m_spnd]/ {FIXED [prod_typ],[for_view],[ctry],[prod_pltfrm],[issr] : SUM([l12m_spnd])}` --
-    a Tableau ROW-LEVEL calc (bare `[l12m_spnd]` divided by a per-row LOD total) that this
+    this function sees). Confirmed on a real corpus workbook (WorkbookA), `Contri_total_x` =
+    `[l12m_metric]/ {FIXED [item_typ],[view_flag],[ctr],[prod_pltfrm],[grp] : SUM([l12m_metric])}` --
+    a Tableau ROW-LEVEL calc (bare `[l12m_metric]` divided by a per-row LOD total) that this
     function wrongly flagged as aggregate purely because `SUM(` appears inside the `{FIXED}`
-    block, promoting it to a MEASURE with a bare, unaggregated `'Dormancy'[l12m_spnd]` reference
+    block, promoting it to a MEASURE with a bare, unaggregated `'Delta'[l12m_metric]` reference
     at measure top level. Confirmed live against Desktop via a Full table refresh (not just
-    inferred from the TMDL text): "A single value for column 'l12m_spnd' in table 'Dormancy'
+    inferred from the TMDL text): "A single value for column 'l12m_metric' in table 'Delta'
     cannot be determined" -- and because Analysis Services aborts a WHOLE table's refresh on any
     one calculated object's error, this did not just blank one card, it failed the ENTIRE
-    `Recommendations` table's refresh (one more real-corpus instance of the exact same shape,
+    `Gamma` table's refresh (one more real-corpus instance of the exact same shape,
     `Rsn`-referencing) and, through it, every table blend-key-related to it.
     """
     stripped = _STRIP_STR.sub("", formula or "")
@@ -1774,8 +1774,8 @@ _DATE_PAD_IDIOM_RE = re.compile(r"""
 
 # Tableau's hand-rolled "abbreviated-month + apostrophe + 2-digit-year" period label idiom --
 # e.g. "Jan'24" -- built by hand because Tableau's STR()/DATENAME() have no single format token
-# for this exact shape. A real, recurring author pattern (ground truth: AP Product Portfolio
-# Management Dashboard's "Analysis period from/to[N] [qoq/mom|yoy]" family, 12 occurrences across
+# for this exact shape. A real, recurring author pattern (ground truth: WorkbookG
+# 's "Analysis period from/to[N] [qoq/mom|yoy]" family, 12 occurrences across
 # 2 tables) that was previously declined outright by STR()'s own generic "date nested inside
 # another function" guard -- correctly conservative for an ARBITRARY nested-date expression, but
 # needlessly so for this ONE closed, unambiguous shape: DAX's FORMAT() token "mmm" already
@@ -1805,9 +1805,9 @@ _DATE_PAD_IDIOM_RE = re.compile(r"""
 # larger expression, in every real corpus instance found) OR a short paren-free run (the
 # original, narrower pattern, kept as a fallback for a bare non-bracketed reference). Tableau's
 # own "(copy)" renaming convention for a duplicated calculated field embeds a LITERAL paren pair
-# INSIDE the bracketed field name itself (e.g. `[period from (copy)_1629458666403340289]`) --
-# real corpus fields this idiom's own "date" sub-expression legitimately refers to (AP Product
-# Portfolio Management Dashboard's "Analysis period from/to (copy)_..." family). The ORIGINAL
+# INSIDE the bracketed field name itself (e.g. `[period from (copy)_5525234341312294123]`) --
+# real corpus fields this idiom's own "date" sub-expression legitimately refers to (WorkbookG
+# 's "Analysis period from/to (copy)_..." family). The ORIGINAL
 # blanket `[^()]+?` pattern stopped matching the instant it hit that inner `(copy)` text, silently
 # declining a real, otherwise-supported instance of this idiom (8 of 12 real occurrences). Fixed
 # here with a single, UNAMBIGUOUS alternative (`\[[^\]]*\]` matched whole, not looped char-by-
@@ -1906,7 +1906,7 @@ if __name__ == "__main__":
 
     def rk(f):
         # Mirrors tmdl.py's real resolve_kind: everything is a plain column EXCEPT `promoted`,
-        # which stands in for a real corpus field like Caribbean's `Gross Trx Amt Declined` --
+        # which stands in for a real corpus field like WorkbookD's `Amount Declined` --
         # a calc with no aggregate of its own that `_aggregate_map`'s fixpoint promoted to a DAX
         # MEASURE because something else (a parameter reference, or a downstream calc that itself
         # aggregates) forced it to be one. `resolve()`/`r()` above renders it identically to an
@@ -1922,7 +1922,7 @@ if __name__ == "__main__":
         # Tableau overloads `+` for string concatenation; DAX's `+` is always arithmetic and fails
         # at QUERY TIME (not load time) on text operands: "Cannot convert value '' of type Text to
         # type Numeric/Date". Confirmed on a real workbook (WorkbookB Dashboard):
-        # `[cl.Slice By] + "|" + [cl.Slice By - Secondary]`, a label-building concatenation. A
+        # `[cl.Selector] + "|" + [cl.Selector - Secondary]`, a label-building concatenation. A
         # string literal anywhere in the chain is the signal; a chain with none stays arithmetic
         # (this codebase has no reliable per-operand type signal to do better without threading a
         # type through the whole recursive descent -- see `add_expr`'s docstring).
@@ -1979,8 +1979,8 @@ if __name__ == "__main__":
                 # LTRIM/RTRIM used to map to TRIM, which trims BOTH ends.
                 "LTRIM([s])", "RTRIM([s])",
                 # SUM()/AVG()/etc of a BARE reference that resolve_kind says is a promoted
-                # MEASURE, not a column -- exactly the Caribbean `Gross Trx Amt Decline Rate`
-                # shape (SUM([Gross Trx Amt Declined]) where the referenced calc has no aggregate
+                # MEASURE, not a column -- exactly the WorkbookD `Amount Decline Rate`
+                # shape (SUM([Amount Declined]) where the referenced calc has no aggregate
                 # of its own and was promoted to a measure by tmdl.py's `_aggregate_map`
                 # fixpoint). `_BARE_COLUMN` alone cannot see this -- 'T'[promoted] is
                 # textually identical whether `promoted` is a column or a measure -- so this MUST
@@ -2135,12 +2135,12 @@ if __name__ == "__main__":
         print(f"  {'OK ' if ok else 'FAIL'} is_aggregate({f!r}) -> {ok}  (want True)")
         assert ok, f"expected aggregate: {f!r}"
 
-    print("--- is_aggregate: false positives from bracketed field NAMES (the NGPO bug) ---")
-    # Real corpus case: `[issuer value]*[Card Count (copy)_5832583774982094848]` -- the
+    print("--- is_aggregate: false positives from bracketed field NAMES (the WorkbookC bug) ---")
+    # Real corpus case: `[value a]*[Item Count (copy)_4919242711740413154]` -- the
     # substring "Count (" inside the bracketed field NAME must not register as a COUNT(...) call.
     agg_false = [
-        "[issuer value]*[Card Count (copy)_5832583774982094848]",
-        "[Card Count (copy)]",
+        "[value a]*[Item Count (copy)_4919242711740413154]",
+        "[Item Count (copy)]",
         "[x]*[Count (copy)]",
         "[Sum (2)] + [y]",
         "[Average (USD)]",
@@ -2152,7 +2152,7 @@ if __name__ == "__main__":
         assert not ok, f"expected NOT aggregate (field-name false positive): {f!r}"
 
     print("--- is_aggregate: false positives from an aggregate call INSIDE a {FIXED} LOD block "
-          "(the WorkbookA Dor_Contri_tot_vol bug) ---")
+          "(the WorkbookA Contri_total_x bug) ---")
     # Real corpus case: a bare, row-level reference divided by a {FIXED ...} LOD -- the LITERAL
     # `SUM(` sitting inside the LOD block must not make the OUTER formula register as aggregate;
     # Tableau's LOD already materializes one value per row at its own grain and hands that back
@@ -2160,7 +2160,7 @@ if __name__ == "__main__":
     # as `_collapse_promoted_aggregate`'s own `is_lod` case one level up but for the FORMULA
     # itself here, not a field it references.
     lod_false = [
-        "[l12m_spnd]/ {FIXED [prod_typ],[for_view],[ctry],[prod_pltfrm],[issr] : SUM([l12m_spnd])}",
+        "[l12m_metric]/ {FIXED [item_typ],[view_flag],[ctr],[prod_pltfrm],[grp] : SUM([l12m_metric])}",
         "{FIXED [k]: SUM([x])}",
         "[a] - {INCLUDE [k]: AVG([b])}",
     ]
@@ -2181,7 +2181,7 @@ if __name__ == "__main__":
     # ---- Tableau date literals (#...#) and ASCII/CHAR ---------------------------------------
     # `#` had no token at all, so the `other` catch-all rejected the WHOLE formula with
     # "unexpected character '#'" -- one literal declining an otherwise fully translatable calc
-    # (real instance: WorkbookB Dashboard's `Originated From Data Center`).
+    # (real instance: WorkbookB Dashboard's `Origin Flag`).
     print("--- date literals + ASCII ---")
     _lit_cases = [
         ("[d] >= #2022-07-01#", "'T'[d] >= DATE(2022, 7, 1)"),
@@ -2259,7 +2259,7 @@ if __name__ == "__main__":
     print("--- DATEPARSE checks OK ---")
 
     # ---- DATEPARSE: 'MMM' (3-letter month name) / 'yy' (2-digit year) / '' escaped apostrophe --
-    # Ground truth: AP Product Portfolio Management Dashboard's `Opcert Q4` -- previously declined
+    # Ground truth: WorkbookG's `Option Q4` -- previously declined
     # as "variable-width token at M''yy" because the tokenizer had no entry for MMM/yy at all and
     # misread the literal '' as the start of a 2-more-token run.
     print("--- DATEPARSE: MMM/yy/escaped-apostrophe ---")
@@ -2484,14 +2484,14 @@ if __name__ == "__main__":
     print("--- MIN/MAX of a promoted measure checks OK ---")
 
     # ---- SUM/AVG/etc. of a promoted measure: collapse via resolve_formula ----------------------
-    print("--- promoted-aggregate collapse (Caribbean - Drilldown (QBR) ground truth) ---")
+    print("--- promoted-aggregate collapse (WorkbookD ground truth) ---")
 
     def rk2(f):
         return "measure" if f in ("promoted", "rowlevel_promoted", "cyclic") else "column"
 
     # (a) Ground truth shape: the promoted field has NO aggregate of its own -- it only became a
-    # measure through parameter-reference propagation several hops upstream (Caribbean's
-    # `Gross Trx Amt Approved`, an IF with no SUM anywhere, promoted only because it transitively
+    # measure through parameter-reference propagation several hops upstream (WorkbookD's
+    # `Amt Approved`, an IF with no SUM anywhere, promoted only because it transitively
     # references a calc reading `[Parameters].[...]`). Collapsing means iterating its own
     # row-level translation with the DAX function this call site needs.
     def rf_rowlevel(f):
@@ -2552,7 +2552,7 @@ if __name__ == "__main__":
     # cleanly, not raise KeyError. DISTINCTCOUNT has no AGG_ITERATOR entry at all (see
     # NO_ITERATOR's own comment -- counting distinct values of an expression needs a genuine
     # restructure, not a substitution), so the row-level-iterate sub-case must never be attempted
-    # for it. Confirmed on a real workbook (Digital Sales - Leads Dashboard): reached this exact
+    # for it. Confirmed on a real workbook (WorkbookH): reached this exact
     # KeyError('DISTINCTCOUNT') the first time this collapse was wired up without this guard.
     try:
         translate("COUNTD([rowlevel_promoted])", r, resolve_kind=rk2, resolve_formula=rf_rowlevel)
@@ -2563,7 +2563,7 @@ if __name__ == "__main__":
               "exists to collapse into)")
 
     # (h) The promoted field is itself an LOD expression (`{FIXED [k]: sum([x])}`) -- ground truth:
-    # NGPO Dashboard New - AP Version (MSC), 17 fields. `is_aggregate()` sees the literal `sum(`
+    # WorkbookC, 17 fields. `is_aggregate()` sees the literal `sum(`
     # inside the braces and would otherwise misfire into the flat-collapse branch (b), which can
     # never match since an LOD's own translation is `CALCULATE(...)`, never a bare `SUM(...)` --
     # so before this fix, every one of these 17 fields declined. The correct treatment is the
@@ -2582,19 +2582,19 @@ if __name__ == "__main__":
 
     # ---- RANK/RANK_DENSE with a resolved table-calc partition ------------------------------
     print("--- RANK/RANK_DENSE with a resolved partition ---")
-    # (a) Ground truth shape (NGPO Dashboard New - AP Version (MSC), `Rank - Topic Area`): a
+    # (a) Ground truth shape (WorkbookC, `Rank - Group Area`): a
     # resolved "Restart every: <field>" partition lets RANK/RANK_DENSE translate exactly via
     # RANKX's own native `ties` argument, instead of declining.
-    got, _r, _p = translate("RANK(SUM([x]), 'desc')", r, tc_partition="'T'[Topic Area]")
-    assert got == "RANKX(ALLEXCEPT('T', 'T'[Topic Area]), SUM('T'[x]), , DESC, Skip)", got
+    got, _r, _p = translate("RANK(SUM([x]), 'desc')", r, tc_partition="'T'[Group Area]")
+    assert got == "RANKX(ALLEXCEPT('T', 'T'[Group Area]), SUM('T'[x]), , DESC, Skip)", got
     print(f"  OK  RANK(SUM([x]), 'desc') with a resolved partition -> {got}")
 
-    got, _r, _p = translate("RANK_DENSE([x])", r, tc_partition="'T'[Topic Area]")
-    assert got == "RANKX(ALLEXCEPT('T', 'T'[Topic Area]), 'T'[x], , DESC, Dense)", got
+    got, _r, _p = translate("RANK_DENSE([x])", r, tc_partition="'T'[Group Area]")
+    assert got == "RANKX(ALLEXCEPT('T', 'T'[Group Area]), 'T'[x], , DESC, Dense)", got
     print(f"  OK  RANK_DENSE([x]) with no explicit order defaults to DESC, ties=Dense -> {got}")
 
-    got, _r, _p = translate("RANK(SUM([x]), 'asc')", r, tc_partition="'T'[Topic Area]")
-    assert got == "RANKX(ALLEXCEPT('T', 'T'[Topic Area]), SUM('T'[x]), , ASC, Skip)", got
+    got, _r, _p = translate("RANK(SUM([x]), 'asc')", r, tc_partition="'T'[Group Area]")
+    assert got == "RANKX(ALLEXCEPT('T', 'T'[Group Area]), SUM('T'[x]), , ASC, Skip)", got
     print(f"  OK  RANK(SUM([x]), 'asc') honours an explicit ascending order -> {got}")
 
     # (b) No resolved partition (the common case: extract.py found no `level-break`, or tmdl.py's
@@ -2614,7 +2614,7 @@ if __name__ == "__main__":
     # RANKX's own `ties` argument can represent exactly.
     for fn in ("RANK_UNIQUE", "RANK_MODIFIED", "RANK_PERCENTILE"):
         try:
-            translate(f"{fn}([x])", r, tc_partition="'T'[Topic Area]")
+            translate(f"{fn}([x])", r, tc_partition="'T'[Group Area]")
             raise AssertionError(f"expected {fn} to still decline even with a resolved partition")
         except Unsupported:
             pass
@@ -2623,7 +2623,7 @@ if __name__ == "__main__":
 
     # (d) A malformed order argument declines rather than silently defaulting.
     try:
-        translate("RANK(SUM([x]), 'sideways')", r, tc_partition="'T'[Topic Area]")
+        translate("RANK(SUM([x]), 'sideways')", r, tc_partition="'T'[Group Area]")
         raise AssertionError("expected Unsupported for an order argument that is not asc/desc")
     except Unsupported:
         print("  OK  RANK(...) with a non-asc/desc order argument declines")
@@ -2638,7 +2638,7 @@ if __name__ == "__main__":
 
     # ---- DATE(<expr>): redundant cast on an IF/ELSEIF cascade, and a parameter-derived string --
     # Reproduces the real shapes hand-fixed on a real corpus workbook (WorkbookB Dashboard):
-    # `cl.Anchor Date` = DATE(IF ... THEN <bare field/param ref> ... ELSEIF ... THEN
+    # `cl.Base Date` = DATE(IF ... THEN <bare field/param ref> ... ELSEIF ... THEN
     # DATE(<param> & "-01") ... END), whose own declared Tableau datatype is "date".
     print("--- DATE(<expr>) cast on an IF cascade + parameter-derived string ---")
 
@@ -2688,15 +2688,15 @@ if __name__ == "__main__":
     # own_type being "string" (not "date") meant NEITHER existing branch fired and this declined
     # outright, even though DATEPARSE(...) is already provably date-returning and MIN() of ONE
     # expression preserves that -- no own_type signal is needed to prove it.
-    got, _r, _p = translate('DATE(MIN(DATEPARSE("yyyyMM", [mnth_yr])))', r)
-    want = ("MINX('T', IFERROR(DATE(VALUE(MID('T'[mnth_yr], 1, 4)), "
-            "VALUE(MID('T'[mnth_yr], 5, 2)), 1), BLANK()))")
+    got, _r, _p = translate('DATE(MIN(DATEPARSE("yyyyMM", [period_code])))', r)
+    want = ("MINX('T', IFERROR(DATE(VALUE(MID('T'[period_code], 1, 4)), "
+            "VALUE(MID('T'[period_code], 5, 2)), 1), BLANK()))")
     assert got == want, f"got {got!r}, want {want!r}"
-    print(f"  OK  DATE(MIN(DATEPARSE(\"yyyyMM\", [mnth_yr]))) drops the redundant outer cast, "
+    print(f"  OK  DATE(MIN(DATEPARSE(\"yyyyMM\", [period_code]))) drops the redundant outer cast, "
           f"with NO own_type needed -> {got}")
 
     # MAX(...) gets the same treatment, and nesting (MIN(MAX(...))) recurses correctly.
-    got, _r, _p = translate('DATE(MAX(DATEPARSE("yyyyMM", [mnth_yr])))', r)
+    got, _r, _p = translate('DATE(MAX(DATEPARSE("yyyyMM", [period_code])))', r)
     assert got.startswith("MAXX('T', IFERROR(DATE("), got
     print(f"  OK  DATE(MAX(DATEPARSE(...))) also drops the outer cast -> {got}")
 
@@ -2759,7 +2759,7 @@ if __name__ == "__main__":
     print("--- <TYPE>('NULL') typed-null idiom checks OK ---")
 
     # ---- STR(<computed date-returning call>): the type-inference gap found on a real corpus
-    # workbook (WorkbookB Dashboard, `cl.Rolling 7 Day End - Lookups`):
+    # workbook (WorkbookB Dashboard, `cl.Rolling Window End - Lookup`):
     # `STR(DATE(dateadd('day', 6, [x])))`, previously declined because `last_field`'s resolved
     # type (whatever field DATEADD's OWN argument happens to reference) is not a reliable proxy
     # for whether the whole wrapping call returns a date. `_is_date_returning_call` proves it
@@ -2789,8 +2789,8 @@ if __name__ == "__main__":
 
     # ---- STR(<computed integer-returning call>): the mirror-image, SAFER category -------------
     # YEAR/MONTH/DAY/DATEDIFF/DATEPART all return a plain integer, never a date, so STR() of one
-    # has zero locale/date-format ambiguity -- ground truth (WorkbookB Dashboard) `Date Range
-    # Text` = `STR(DATEPART('day', [Date Range Start Date]))`. `last_field` for each of these
+    # has zero locale/date-format ambiguity -- ground truth (WorkbookB Dashboard) `Range Label
+    # ` = `STR(DATEPART('day', [Date Range Start Date]))`. `last_field` for each of these
     # resolves to the date-typed field buried inside the call (e.g. `[d]`), which is exactly the
     # trap this fix avoids falling into: the OUTER call's return type, not the inner field's, is
     # what STR() actually receives.
@@ -2838,8 +2838,8 @@ if __name__ == "__main__":
 
     # ---- zero-pad date-format idiom: STR(YEAR)+"-"+IF-LEN-pad(MONTH)[+"-"+IF-LEN-pad(DAY)] -----
     # collapses to one FORMAT() call. Ground truth (WorkbookB Dashboard's "... w Dash" family, 6
-    # occurrences: cl.Deflection/Lookup/CE Eligible/Deflection Settled/Deflection Result Month w
-    # Dash for the month-only shape, cl.CE Eligible Date w Dash for the day-inclusive shape).
+    # occurrences: cl.Deflection/Lookup/Eligible/Deflection Settled/Deflection Result Month w
+    # Dash for the month-only shape, cl.Eligible Date w Dash for the day-inclusive shape).
     print("--- zero-pad date-format idiom ---")
     _month_pad = ('STR(YEAR([d])) + "-" + \r\n'
                   'IF LEN(STR(MONTH([d]))) = 1\r\n'
@@ -2883,8 +2883,8 @@ if __name__ == "__main__":
     print("--- zero-pad date-format idiom checks OK ---")
 
     # ---- month-apostrophe-year period label idiom: LEFT(STR(DATENAME('month',d)),3)+"'"+ -------
-    # RIGHT(STR(YEAR(d)),2) -- e.g. "Jan'24". Ground truth (AP Product Portfolio Management
-    # Dashboard's "Analysis period from/to[N] [qoq/mom|yoy]" family, 12 occurrences).
+    # RIGHT(STR(YEAR(d)),2) -- e.g. "Jan'24". Ground truth (WorkbookG
+    # 's "Analysis period from/to[N] [qoq/mom|yoy]" family, 12 occurrences).
     print("--- month-apostrophe-year period label idiom ---")
     _period_label = "left(str(DATENAME('month', [d])),3)+\"'\"+right(STR(YEAR([d])),2)"
     got, _r, _p = translate(_period_label, r)
@@ -2913,8 +2913,8 @@ if __name__ == "__main__":
     print("  OK  mismatched-field variant does not match the idiom")
 
     # Trailing literal suffix (` + " - "`), a real corpus variant that builds a range-label
-    # PREFIX (e.g. "Jan'24 - ", the opening half of "Jan'24 - Mar'24"). Ground truth (AP Product
-    # Portfolio Management Dashboard's `Analysis period from (copy)_...` family, 8 occurrences)
+    # PREFIX (e.g. "Jan'24 - ", the opening half of "Jan'24 - Mar'24"). Ground truth (WorkbookG
+    # 's `Analysis period from (copy)_...` family, 8 occurrences)
     # that did NOT match the base idiom above -- confirming the fix actually closes that gap.
     _period_label_suffix = _period_label + ' + " - "'
     got_suffix, _r, _p = translate(_period_label_suffix, r)
@@ -2923,7 +2923,7 @@ if __name__ == "__main__":
     print("--- month-apostrophe-year period label idiom checks OK ---")
 
     # ---- block comments: `/* ... */`, not just `//` -------------------------------------------
-    # Real corpus regression (10000056_achc_WF_Payments_Insights): an ordinary IF/THEN/ELSE/END
+    # Real corpus regression (WorkbookJ): an ordinary IF/THEN/ELSE/END
     # with a `/*...*/` comment sitting between THEN and the real expression declined the WHOLE
     # calc with "unexpected character '*'" -- the comment's own closing `*/` fell through to the
     # lexer's `other` catch-all, not the (`//`-only) comment stripper.
@@ -2968,8 +2968,8 @@ if __name__ == "__main__":
     print("--- block comment checks OK ---")
 
     # ---- '+' as text concat, proven by a bare string-typed column, no literal anywhere --------
-    # Real corpus regression: WorkbookA_v2's `Seg_spnd_f6_concat` =
-    # `[first6months] + CHAR(10) + [first_6_month_cutoff]` -- both operands plain string columns,
+    # Real corpus regression: WorkbookA_v2's `Seg_concat_a` =
+    # `[firstN] + CHAR(10) + [first_6_month_cutoff]` -- both operands plain string columns,
     # no string literal in the chain at all, so the OLD literal-only detection left this as a
     # plain DAX `+`, which loads fine (syntactically valid) and then errors at query time trying
     # to add two text values.
@@ -3000,8 +3000,8 @@ if __name__ == "__main__":
     print("--- '+' text-concat proof checks OK ---")
 
     # ---- SUM/AVERAGE of a string-typed column: VALUE()-cast; MIN/MAX etc: decline -------------
-    # Real corpus regression: WorkbookA_v2's Activation.'Issuer YoY Growth',
-    # SUM([issr_actv_crds_py]) where Tableau itself declares that field's datatype "string" even
+    # Real corpus regression: WorkbookA_v2's Beta.'Growth Rate A',
+    # SUM([metric_py]) where Tableau itself declares that field's datatype "string" even
     # though every real value is a plain digit string -- Desktop's own error: "The function SUM
     # cannot work with values of type String" (a query-time MdxScript error, invisible to load).
     print("--- SUM/AVERAGE of a Tableau-string-typed column ---")
@@ -3037,8 +3037,8 @@ if __name__ == "__main__":
     print("--- SUM/AVERAGE of a Tableau-string-typed column checks OK ---")
 
     # ---- redundant parens around a bare column inside an aggregate ----------------------------
-    # Real corpus regression: WorkbookA_v2's Activation.'Activation Rate_issr'
-    # = AVG([issr_actv_crds_cy])/AVG(([issr_total_actv_crd_cy])) -- the second AVG's argument has a
+    # Real corpus regression: WorkbookA_v2's Beta.'Rate_x'
+    # = AVG([metric_cy])/AVG(([total_metric_cy])) -- the second AVG's argument has a
     # redundant Tableau paren, which used to defeat the string-column-cast check above entirely.
     print("--- redundant parens around a bare column inside an aggregate ---")
 

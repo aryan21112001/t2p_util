@@ -221,8 +221,8 @@ RULES: tuple[Rule, ...] = (
         statement="Column and measure names on a table must be unique CASE-INSENSITIVELY.",
         enforced_by=ENGINE,
         severity=OPEN_FAIL,
-        symptom='TOM\'s name collection ignores case, so "BIC Compliance Check" and "Bic Compliance '
-                'Check" are one name to it though they differ on disk. Desktop refuses to open the '
+        symptom='TOM\'s name collection ignores case, so "SAMPLE CHECK ALPHA" and "Sample Check Alpha'
+                '" are one name to it though they differ on disk. Desktop refuses to open the '
                 'file: "Failed to add a deserialized Column object into the model ... Item \'...\' '
                 'already exists in the collection." Seen on a real corpus workbook where a physical '
                 'column collided with a calculated-field alias of itself.',
@@ -353,7 +353,7 @@ RULES: tuple[Rule, ...] = (
                  "table's column the name resolver happened to match first.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on WorkbookA (Usage Overview): a shared column caption across tables "
+        symptom="Confirmed on WorkbookA (Overview Page): a shared column caption across tables "
                 "allocated a single shelf measure from a global first-match, so a visual on "
                 "the SECOND table silently bound to the FIRST table's measure -- syntactically "
                 "valid DAX against a real model object, just the wrong one; the model loads "
@@ -767,20 +767,20 @@ RULES: tuple[Rule, ...] = (
                  "never a MEASURE.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom='Confirmed on Caribbean - Drilldown (QBR): `Gross Trx Amt Decline Rate` = '
-                '`DIVIDE(SUM(\'caribbean\'[Gross Trx Amt Declined]), ...)`, where '
-                '`Gross Trx Amt Declined` carries no aggregate of its own in its Tableau source '
+        symptom='Confirmed on WorkbookD: `Amount Decline Rate` = '
+                '`DIVIDE(SUM(\'tbl_d\'[Amount Declined]), ...)`, where '
+                '`Amount Declined` carries no aggregate of its own in its Tableau source '
                 'and was correctly promoted to a MEASURE by `tmdl.py`\'s `_aggregate_map` '
                 'fixpoint -- but a promoted measure renders with the IDENTICAL `\'Table\'[Name]` '
                 'string shape as an ordinary column, so no text-only check can tell them apart '
                 'without knowing which names were promoted. Desktop opened the model clean and '
                 'rejected only the dependent visual once a real user clicked it, on the CNP(PPT) '
-                'page\'s "(caribbean) Approval Rate (#/$)" visual: "This expression refers to a '
+                'page\'s "(tbl_d) Approval Rate (#/$)" visual: "This expression refers to a '
                 'Measure object ... which has an error", Underlying Error Missing_References. '
                 'Confirmed corpus-wide, not a one-off: a regex scan for AGGFUNC(\'Table\'[Name]) '
                 'where Name is a measure-only identifier found 135 instances across 3 of 6 '
-                'reference workbooks (Caribbean 18, NGPO Dashboard New - AP Version (MSC) 110, '
-                'LAC Pedidosya Transaction Profile 7) before the fix; 0 after. The primary fix is '
+                'reference workbooks (WorkbookD 18, WorkbookC 110, '
+                'WorkbookI 7) before the fix; 0 after. The primary fix is '
                 'a PRE_EMIT decline: a new `resolve_kind` callback threaded through '
                 '`dax.translate`/`Parser` the same way `resolve_type` already was for the STR() '
                 'date check (SM-DAX-01\'s sibling), so `func_call`\'s aggregate-over-bare-'
@@ -944,7 +944,7 @@ RULES: tuple[Rule, ...] = (
                  "matching conditional-formatting FillRule/gradient object.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on WorkbookA (Dormancy Management): a Square-mark heatmap's Colour "
+        symptom="Confirmed on WorkbookA (Status Page): a Square-mark heatmap's Colour "
                 "measure reached the Values well but no FillRule gradient was attached, so "
                 "the matrix rendered with uniform/default cell colour instead of a heatmap. "
                 "Fixed at the generator (pbir.py's _heatmap_gradient_object). NOT given a "
@@ -1023,7 +1023,7 @@ RULES: tuple[Rule, ...] = (
                  "can relate it to what the visual is actually asking for.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom='Confirmed on NGPO Dashboard New - AP Version (MSC), "Level 4 Analysis" page, visual 0cac7a67f24e6629c51c: query projects only \'Level 3 - Intervention Mapping\'[Card Lifestage], but filterConfig also carried a filter on \'Level 4 - Lifestage X Interventions\'[Topic Area (copy)] -- a different table with NO relationship to the first anywhere in the model (relationships.tmdl is empty for every rebuilt workbook in this corpus -- see build-tableau-pbip/SKILL.md\'s "the join path is exercised only by the synthetic probe"). Desktop: "Can\'t determine relationships between the fields... Underlying Error: InvalidUnconstrainedJoin... Not showing data for DataShape \'DS0\' because it\'s not clear how these fields are related." Root cause is Tableau data BLENDING: the worksheet\'s filter set silently carries fields from a datasource the worksheet\'s own <datasources> list never declares, matched by Tableau at query time with no stored key -- there is no Power BI relationship to emit for it. Scan of all 1,251 visuals across the 6-workbook corpus for "a filterConfig entity absent from the visual\'s own query entities, and not a Param table" found 117 instances across 2 of 6 workbooks (NGPO 80, AP Product Portfolio Management Dashboard 37); 0 in the other 4. Fixed at the generator (pbir.py\'s `_visual_filters`/`_relationship_reachable`): the unreachable filter is DROPPED and reported in RESIDUE.md\'s filter-disposition table, never emitted broken -- a `Param `-prefixed table is exempted (a slicer\'s own direct binding, no relationship needed by design). This rule is the POST_EMIT backstop should the generator regress; it is a graph-reachability question (`Project.relationship_reachable`), not a text match, because a real key-based relationship (never yet seen in this corpus, but structurally possible) would make the SAME cross-table filter legal.',
+        symptom='Confirmed on WorkbookC, "Page L4" page, visual ffffffffffffffffffff: query projects only \'Level 3 - Mapping A\'[Stage Name], but filterConfig also carried a filter on \'Level 4 - Mapping B\'[Group Area (copy)] -- a different table with NO relationship to the first anywhere in the model (relationships.tmdl is empty for every rebuilt workbook in this corpus -- see build-tableau-pbip/SKILL.md\'s "the join path is exercised only by the synthetic probe"). Desktop: "Can\'t determine relationships between the fields... Underlying Error: InvalidUnconstrainedJoin... Not showing data for DataShape \'DS0\' because it\'s not clear how these fields are related." Root cause is Tableau data BLENDING: the worksheet\'s filter set silently carries fields from a datasource the worksheet\'s own <datasources> list never declares, matched by Tableau at query time with no stored key -- there is no Power BI relationship to emit for it. Scan of all 1,251 visuals across the 6-workbook corpus for "a filterConfig entity absent from the visual\'s own query entities, and not a Param table" found 117 instances across 2 of 6 workbooks (WorkbookC 80, WorkbookG 37); 0 in the other 4. Fixed at the generator (pbir.py\'s `_visual_filters`/`_relationship_reachable`): the unreachable filter is DROPPED and reported in RESIDUE.md\'s filter-disposition table, never emitted broken -- a `Param `-prefixed table is exempted (a slicer\'s own direct binding, no relationship needed by design). This rule is the POST_EMIT backstop should the generator regress; it is a graph-reachability question (`Project.relationship_reachable`), not a text match, because a real key-based relationship (never yet seen in this corpus, but structurally possible) would make the SAME cross-table filter legal.',
         detection=POST_EMIT,
         confidence=EMPIRICAL,
         status=IMPLEMENTED,
@@ -1041,7 +1041,7 @@ RULES: tuple[Rule, ...] = (
                  "otherwise.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on WorkbookA (Dormancy Management): PBIR's own schema default for this "
+        symptom="Confirmed on WorkbookA (Status Page): PBIR's own schema default for this "
                 "property is true (opt-OUT cross-filtering) on every worksheet-kind visual "
                 "unless a build explicitly sets it, which is the opposite of Tableau's "
                 "opt-IN action model -- clicking any one heatmap cell blanked every other "
@@ -1063,7 +1063,7 @@ RULES: tuple[Rule, ...] = (
                  "or more tables with no relationship path between them.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom="Confirmed on NGPO Dashboard New - AP Version (MSC), 'Level 2/4 Analysis' "
+        symptom="Confirmed on WorkbookC, 'Page L2/L4' "
                 "pages: a lineChart whose Category came from one federated Tableau-blend "
                 "table and whose Y came from another, with relationships.tmdl empty. "
                 "Desktop: \"Can't determine relationships between the fields... Underlying "
@@ -1164,8 +1164,8 @@ RULES: tuple[Rule, ...] = (
                  "deliberate containment like a background panel.",
         enforced_by=EDITOR,
         severity=SILENT_WRONG,
-        symptom="Confirmed on WorkbookA (Acquisition page): a tableEx 'Prod Id' list and a "
-                "barChart 'Issuer YoY Growth' overlapped by 7.8px along a shared 322px edge, "
+        symptom="Confirmed on WorkbookA (Alpha page): a tableEx 'Item Id' list and a "
+                "barChart 'Growth Rate A' overlapped by 7.8px along a shared 322px edge, "
                 "inherited unchanged from the source .twb's own zone geometry -- Tableau's "
                 "renderer tolerates this as internal padding, Power BI's does not. Desktop's "
                 "PDF export rendered the chart's own title clipped ('ssuer - YoY Growth', "
@@ -1185,7 +1185,7 @@ RULES: tuple[Rule, ...] = (
                  "shorter renders as an unreadable icon-sized placeholder.",
         enforced_by=EDITOR,
         severity=COSMETIC,
-        symptom="Confirmed on WorkbookA (Usage Deepdive page): several bar/line charts were "
+        symptom="Confirmed on WorkbookA (Detail Page page): several bar/line charts were "
                 "emitted at icon scale, well under 120px tall, rendering as an unreadable "
                 "mini-icon with no visible axis even though the underlying query was correct "
                 "and populated. Fixed at the generator (pbir.py's _grow_undersized_charts); "

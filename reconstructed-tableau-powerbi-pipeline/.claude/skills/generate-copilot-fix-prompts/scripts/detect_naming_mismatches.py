@@ -8,12 +8,12 @@ named [X] once a conventional prefix/suffix is stripped.
 This is NOT a translation gap and not random data corruption -- it is the signature of a real,
 mechanical authoring mistake already present in the source Tableau workbook: a calc formula that
 was copy-pasted from a worksheet/table using one naming convention onto a table using a
-DIFFERENT one, without updating the field reference. Confirmed on a real corpus workbook (AP
-Product Portfolio Management Dashboard): 12 calcs on `tvaf_vcpp_market_landscape_apac` reference
-`[tokn_pv_cy]`, `[tokn_active_cards_cy]`, etc., none of which exist ANYWHERE in the workbook's
+DIFFERENT one, without updating the field reference. Confirmed on a real corpus workbook (WorkbookG
+): 12 calcs on `source_table_a` reference
+`[tok_pv_cy]`, `[tok_active_cards_cy]`, etc., none of which exist ANYWHERE in the workbook's
 connection schema -- but that same table has real, connected columns named `[pv_cy]`,
-`[active_cards_cy]` etc. (the `tokn_` prefix legitimately exists only on a DIFFERENT table,
-`tvaf_vcpp_portfolio_view_apac`, as `tokn_count_cy` etc.). Verified directly against the raw
+`[active_cards_cy]` etc. (the `tok_` prefix legitimately exists only on a DIFFERENT table,
+`source_table_other`, as `tok_count_cy` etc.). Verified directly against the raw
 .twb's own <metadata-record> connection schema, not guessed at.
 
 This script is a MECHANICAL, DETERMINISTIC string-comparison over data build-tableau-pbip already
@@ -47,12 +47,12 @@ _DANGLING_RE = re.compile(
 
 # Conventional prefixes/suffixes real Tableau workbooks are observed to vary between a formula's
 # OWN table and the table the formula's field name actually belongs on (copy-paste-without-
-# repointing being the single most common cause). Ordered longest-first so e.g. 'tokn_' is tried
+# repointing being the single most common cause). Ordered longest-first so e.g. 'tok_' is tried
 # before a shorter, accidental sub-match. This list is deliberately a small, named, auditable set
 # -- not a fuzzy edit-distance search -- so a hit is always explainable as "field name minus this
 # exact literal affix", never a coincidental near-match.
-_PREFIXES = ["tokn_", "stg_", "raw_", "src_", "tmp_", "old_", "orig_", "bak_"]
-_SUFFIXES = ["_tokn", "_stg", "_raw", "_src", "_tmp", "_old", "_orig", "_bak", "_v1", "_v2", "_copy"]
+_PREFIXES = ["tok_", "stg_", "raw_", "src_", "tmp_", "old_", "orig_", "bak_"]
+_SUFFIXES = ["_tok", "_stg", "_raw", "_src", "_tmp", "_old", "_orig", "_bak", "_v1", "_v2", "_copy"]
 
 
 def _variants(name):
@@ -127,7 +127,7 @@ def find_naming_mismatches(ir, calc_residue):
         })
 
     # Same-table hits are the strong, high-confidence signal (this is the exact shape the
-    # tokn_ ground-truth case was) -- rank those first.
+    # tok_ ground-truth case was) -- rank those first.
     rows.sort(key=lambda r: (0 if r["same_table_hits"] else 1, r["missing_field"]))
     return rows
 

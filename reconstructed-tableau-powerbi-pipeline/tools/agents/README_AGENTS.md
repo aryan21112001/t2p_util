@@ -314,7 +314,7 @@ inside an agent:
 1. **Reading a Tableau screenshot to decide a visual type.** 62% of corpus worksheets use the
    `Automatic` mark, which Tableau resolves at *render* time — the chart type is genuinely not in
    the file. A screenshot is new information, not better reasoning.
-2. **Hand-authoring DAX for a gap the parser declines.** Example: `cl.Anchor Date` uses Tableau's
+2. **Hand-authoring DAX for a gap the parser declines.** Example: `cl.Base Date` uses Tableau's
    `DATE()` in both senses at once — an outer no-op cast and an inner string parse — so it needs a
    human to drop one and convert the other.
 3. **Deciding what a free-entry parameter should become** (fixed list? what-if parameter? accept the

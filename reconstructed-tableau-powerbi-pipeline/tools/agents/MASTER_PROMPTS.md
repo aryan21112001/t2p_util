@@ -33,9 +33,9 @@ fresh build as a clean slate.
 ```
 
 If this is the WorkbookA workbook specifically: four items are **known-open, not fixed** as of the
-last session — blend-key relationship zero-overlap (`Activation<->Recommendations`),
-`Dormancy`'s 2 bare-column measures (manual fix required), 6 `INDEX()` table-calc fields (manual
-authoring required), and nav-tab fields misclassified as data tables on `Acquisition`. **Decide
+last session — blend-key relationship zero-overlap (`Beta<->Gamma`),
+`Delta`'s 2 bare-column measures (manual fix required), 6 `INDEX()` table-calc fields (manual
+authoring required), and nav-tab fields misclassified as data tables on `Alpha`. **Decide
 now whether any of these block tonight's ship** — don't discover them during Phase 4.
 
 ---
@@ -179,7 +179,7 @@ just unfamiliar.
 
 **4d. Go/no-go:** quality score + lint clean + all Mandatory fixes live-verified + Pre-flight's
 open items explicitly accepted or resolved. If any of the four known-open WorkbookA items (blend-key
-overlap, `Dormancy` bare columns, `INDEX()` fields, nav-tab misclassification) land on a page
+overlap, `Delta` bare columns, `INDEX()` fields, nav-tab misclassification) land on a page
 someone will actually look at tonight, that's a stop-ship, not a footnote.
 
 ---
@@ -212,7 +212,7 @@ python3 tools/agents/implementation/agent-extend-tablecalc-rank/tablecalc_rank_e
   "<file.twbx>" "<out>/<Name>" -o "<new_pbip_dir>"
 
 # LOOKUP/INDEX/WINDOW_SUM — verify model grain before shipping any promotion
-# (WorkbookA's Usage Overview index was promoted but computed wrong at real data grain — see
+# (WorkbookA's Overview Page index was promoted but computed wrong at real data grain — see
 # agent-extend-aryan/README.md for the verification checklist before trusting output)
 python3 tools/agents/implementation/agent-extend-dax-measures/dax_measures_extension_agent.py \
   "<file.twbx>" "<out>/<Name>" -o "<new_pbip_dir>"

@@ -7,8 +7,8 @@ the fully-synthetic generator everywhere it can't.
 
 Why this exists
 ----------------
-A user manually tested a generated PBIP project (LAC Pedidosya Transaction Profile, table
-`gbo_lac_monthly.pedi`, 72 columns) by pointing its stub M partition at a hand-built Excel file.
+A user manually tested a generated PBIP project (WorkbookI, table
+`schema_x.table_monthly`, 72 columns) by pointing its stub M partition at a hand-built Excel file.
 That file didn't match the model's real column names/types, requiring extensive manual
 reconciliation (renames + 59 placeholder-null columns) and hit one real Desktop bug along the
 way: `Excel.Workbook(File.Contents(path), true)` already promotes headers, so an extra
@@ -91,7 +91,7 @@ How a table's real source is found -- never guessed, never name-matched by heuri
      provenance field says exactly which archive, and the dbname field says exactly which member.
   2. That archive is opened (as a zip) under `--realistic <dir>` (for `"twb"` provenance, matched
      by the IR's own recorded `workbook` name -- never the PBIP project's sanitized folder name,
-     which can differ, e.g. `[VRM] Compliance Dashboard.twbx` vs the project folder
+     which can differ, e.g. `[WB] Sample Dashboard.twbx` vs the project folder
      `_VRM_ Compliance Dashboard`) or `--tds <dir>` (for `"tds:..."` provenance). If the expected
      archive doesn't contain that exact member, every `.twbx`/`.tdsx` under both directories is
      scanned as a fallback (member existence only, not a full read) before giving up.
@@ -137,9 +137,7 @@ genuinely live-only source with no local extract), the WHOLE table falls back to
 generator, and the reason is reported in `DUMMY_DATA_REPORT.md` -- never silently.
 
 **Data sensitivity.** `--realistic` mode pulls real data values out of the source workbook's own
-embedded extracts -- in this pipeline's own reference corpus, that includes real transaction/
-card-processing fields (auth response codes, CVV results, card-present flags, merchant/BIN
-identifiers). The Excel workbook and rewritten project this mode produces should be handled with
+embedded extracts -- in this pipeline's own reference corpus, that includes real transactional fields (response codes, flags, identifiers). The Excel workbook and rewritten project this mode produces should be handled with
 the SAME data-sensitivity care as the original source Tableau workbook -- this is a factual
 statement about what the mode does, not a hedge.
 
@@ -175,8 +173,8 @@ DEFAULT_ROWS = 20
 # Full, uncapped real data by default. A low default sample/cap looked like a reasonable
 # "quick build" convenience, but it has a real, repeat-confirmed cost: a sparse sample under-
 # represents the distinct dimension-value combinations a report's own slicers/visuals actually
-# need, so clicking almost any selector on a real workbook (confirmed on WorkbookA's Dormancy
-# Management tab) renders the majority of cards/visuals to (Blank) -- a defect that looks
+# need, so clicking almost any selector on a real workbook (confirmed on WorkbookA's Status Page
+#  tab) renders the majority of cards/visuals to (Blank) -- a defect that looks
 # exactly like a translation bug and isn't one. Pass a smaller --sample-pct/--max-real-rows
 # explicitly when a fast, lower-fidelity build is what's actually wanted.
 DEFAULT_SAMPLE_PCT = 100
@@ -222,7 +220,7 @@ _ILLEGAL_SHEET_CHARS = re.compile(r'[\\/?*\[\]:]')
 # ---------------------------------------------------------------- TMDL/M quoting (mirrors names.py)
 
 def m_unquote(tok):
-    """Reverse of tmdl.py's m_ident(): `#"Billable BID"` -> `Billable BID`, `Channel` -> `Channel`."""
+    """Reverse of tmdl.py's m_ident(): `#"Flag BID"` -> `Flag BID`, `Channel` -> `Channel`."""
     if tok.startswith('#"'):
         return tok[2:-1].replace('""', '"')
     return tok
@@ -353,18 +351,18 @@ def classify_source(source_block):
 
 _EPOCH = datetime.date(2024, 1, 1)
 
-# An Int64 column named like a flag ("CE Eligible - Flag", "Billable Deflection - Flag", ...) is
+# An Int64 column named like a flag ("Eligible - Flag", "Flag B - Flag", ...) is
 # semantically 0/1, not a generic integer -- confirmed on a real corpus workbook (WorkbookB
 # Dashboard): every one of 20 synthetic rows got 1001-1020 for a column literally named
-# "CE Eligible - Flag", so the Tableau-translated `IF([...Flag]=1, "X", IF([...Flag]=0, "Y",
+# "Eligible - Flag", so the Tableau-translated `IF([...Flag]=1, "X", IF([...Flag]=0, "Y",
 # BLANK()))` fell through to BLANK() on every row -- neither branch's condition was ever true.
 # `\bflag\b` (not a bare substring check) so a column merely containing "flag" as part of a
 # longer word would not be misclassified.
 _FLAG_NAME_RE = re.compile(r"\bflag\b", re.IGNORECASE)
 
-# An Int64 column named like a compound YYYYMM period code ("Cpd Month") is sliced by a
+# An Int64 column named like a compound YYYYMM period code ("Period Month") is sliced by a
 # downstream calculated column via `LEFT(x, 4) & "-" & RIGHT(x, 2) & "-01"` straight into
-# DATEVALUE -- confirmed on a real corpus workbook (LAC Pedidosya Transaction Profile): the
+# DATEVALUE -- confirmed on a real corpus workbook (WorkbookI): the
 # generic `1000 + seed + i` formula produced 1773, whose text form "1773" sliced to
 # LEFT(4)="1773"/RIGHT(2)="73", giving DATEVALUE("1773-73-01") -- month 73 does not exist, and
 # Power BI Desktop refused to load the table at all ("Fields that need to be fixed... Cannot
@@ -373,8 +371,8 @@ _FLAG_NAME_RE = re.compile(r"\bflag\b", re.IGNORECASE)
 _MONTH_CODE_NAME_RE = re.compile(r"\bmonth\b", re.IGNORECASE)
 
 # The same idiom, one shelf over: a TEXT column named like a compound YYYYQ period code
-# ("Quarter", "Prch Qtr") is sliced via `LEFT(x, 4) & "-" & ((INT(RIGHT(x, 1)) - 1) * 3 + 1) &
-# "-01"` straight into DATEVALUE -- confirmed on a real corpus workbook (NGPO Dashboard New): the
+# ("Quarter", "Period Qtr") is sliced via `LEFT(x, 4) & "-" & ((INT(RIGHT(x, 1)) - 1) * 3 + 1) &
+# "-01"` straight into DATEVALUE -- confirmed on a real corpus workbook (WorkbookC): the
 # generic `f"{col_name} {i}"` formula produced "Quarter 1", whose LEFT(4)="Quar" is not a year at
 # all. Same failure mode as `_MONTH_CODE_NAME_RE`, one shelf over: an always-valid YYYYQ (year +
 # a single digit 1-4) instead of the column-name-echoing text every other text column gets.
@@ -503,13 +501,13 @@ def coerce_hyper_value(value, mtype):
     if mtype == "text":
         # A hyper extract column physically stored as a float/double but author-overridden to
         # Tableau's `datatype='string' datatype-customized='true'` (e.g. WorkbookA's own
-        # `qtr_rnk_flg`, raw DOUBLE values like 1.0 and 3.87096774) -- Tableau's own double-to-
+        # `per_rnk_flg`, raw DOUBLE values like 1.0 and 3.87096774) -- Tableau's own double-to-
         # string cast trims a trailing ".0" for a whole number ("1.0" displays/filters as "1"),
         # it does not carry Python's `str(float)` suffix through. A worksheet's own saved filter
         # member (`member='1'`) is captured verbatim from TABLEAU's string form, so sampling the
         # same column here with plain `str(value)` emits "1.0" -- never equal to the filter's "1"
         # -- and silently zeroes every row the filter was ever meant to match. Confirmed on WorkbookA:
-        # Activation's "3.1 Portfolio Summary" cards (`For View`+`qtr_rnk_flg=1`) always blank,
+        # Beta's "Sheet 12 - Summary" cards (`View Flag`+`per_rnk_flg=1`) always blank,
         # even though real rows with the underlying value 1.0 exist. Only a WHOLE-number float
         # is reformatted -- a genuine fractional value (3.87096774) is untouched, since Tableau's
         # own cast only ever drops a trailing ".0", never rounds.
@@ -955,7 +953,7 @@ def build_excel_m(desktop_path, sheet_name, columns):
     Deliberately NOT followed by Table.PromoteHeaders: `Excel.Workbook(..., true)` already
     promotes the first row to headers (the `true` argument). Calling PromoteHeaders again treats
     the (already-correct) header row as a second promotion target and corrupts every column name
-    -- the exact bug found manually on LAC Pedidosya. See the regression test in this module's
+    -- the exact bug found manually on WorkbookI. See the regression test in this module's
     self-test.
     """
     path_lit = m_string_literal(desktop_path)
@@ -1464,7 +1462,7 @@ def _make_fixture_hyper(scratch_dir, seq_label, columns, rows):
     (TableDefinition + Inserter) at schema.table `"Extract"."Extract"` -- deterministic and fast,
     so the self-test never depends on the real corpus being present.
 
-    columns: [(source_col_name, sql_type_fn), ...] e.g. [("acct_id", SqlType.text), ...]
+    columns: [(source_col_name, sql_type_fn), ...] e.g. [("rec_id", SqlType.text), ...]
     rows: [[v1, v2, ...], ...] literal values matching `columns`' order.
     Returns the Path to the written .hyper file.
     """
@@ -1528,7 +1526,7 @@ def _make_fixture_hyper_multi(scratch_dir, seq_label, tables):
 def _self_test():
     # ---- sheet-name sanitization: plain name passes through unchanged ----
     used = set()
-    assert sanitize_sheet_name("gbo_lac_monthly.pedi", used) == "gbo_lac_monthly.pedi"
+    assert sanitize_sheet_name("schema_x.table_monthly", used) == "schema_x.table_monthly"
 
     # ---- truncation to 31 chars, and collision gets a numeric suffix ----
     used2 = set()
@@ -1567,7 +1565,7 @@ def _self_test():
 
     # A flag column is 0/1 and BOTH values occur -- the property the original alternating pattern
     # existed for (it exercises both sides of a translated IF(flag=1,...,IF(flag=0,...))).
-    for _flag_col in ("CE Eligible - Flag", "Is Active - Flag (vwCD Merchant)"):
+    for _flag_col in ("Eligible - Flag", "Is Active - Flag (vwX Entity)"):
         _series = [synth_value(_flag_col, "Int64.Type", i) for i in range(1, 21)]
         assert set(_series) == {0, 1}, (_flag_col, _series)
 
@@ -1575,36 +1573,36 @@ def _self_test():
     # to the same total. Every flag alternating 1,0 made every SUM(flag) exactly 10 and every
     # SUM(a)/SUM(b) rate exactly 1.00 across a whole real dashboard in Desktop.
     _sums = {c: sum(synth_value(c, "Int64.Type", i) for i in range(1, 21))
-             for c in ("CE Eligible - Flag", "Billable Deflection - Flag", "Lookup - Flag",
+             for c in ("Eligible - Flag", "Flag B - Flag", "Lookup - Flag",
                        "Adjusted Lookup - Flag", "User Active - Flag")}
     assert len(set(_sums.values())) > 1, (
         f"flag columns must not all sum to the same total -- got {_sums}")
 
-    assert 1000 <= synth_value("Flagship Store Count", "Int64.Type", 1), (
+    assert 1000 <= synth_value("Anchor Store Count", "Int64.Type", 1), (
         "\\bflag\\b must not misfire on a column that merely CONTAINS the substring 'flag'")
-    assert synth_value("Flagship Store Count", "Int64.Type", 1) not in (0, 1), (
+    assert synth_value("Anchor Store Count", "Int64.Type", 1) not in (0, 1), (
         "\\bflag\\b must not misfire on a column that merely CONTAINS the substring 'flag'")
 
-    # Real corpus regression (LAC Pedidosya Transaction Profile): a downstream calculated column
+    # Real corpus regression (WorkbookI): a downstream calculated column
     # slices this Int64 raw column via LEFT(x,4)&"-"&RIGHT(x,2)&"-01" straight into DATEVALUE --
     # the generic 4-digit formula produced 1773, giving DATEVALUE("1773-73-01") and a hard
     # Desktop load failure, not just a wrong number. Every synthesized value must parse as a
     # real YYYYMM: a valid year in LEFT(4), a valid 01-12 month in RIGHT(2).
     for i in range(1, 25):
-        v = synth_value("Cpd Month", "Int64.Type", i)
+        v = synth_value("Period Month", "Int64.Type", i)
         s = str(v)
         assert len(s) == 6, (i, v)
         year, month = int(s[:4]), int(s[4:])
         assert 2000 <= year <= 2100 and 1 <= month <= 12, (i, v, year, month)
-    assert synth_value("Cpd Month", "Int64.Type", 1) != synth_value("Some Other Month", "Int64.Type", 1), \
+    assert synth_value("Period Month", "Int64.Type", 1) != synth_value("Some Other Month", "Int64.Type", 1), \
         "two month-code columns must not produce the identical series"
 
-    # Same idiom, one shelf over (real corpus regression, NGPO Dashboard New): a TEXT raw column
+    # Same idiom, one shelf over (real corpus regression, WorkbookC): a TEXT raw column
     # sliced via LEFT(x,4)&"-"&((INT(RIGHT(x,1))-1)*3+1)&"-01" -- the generic "{name} {i}" text
     # formula produced "Quarter 1", whose LEFT(4)="Quar" is not a year. Every synthesized value
     # must parse as a real YYYYQ: a valid year in the first 4 chars, a real quarter digit 1-4 in
     # the last.
-    for col in ("Quarter", "Prch Qtr"):
+    for col in ("Quarter", "Period Qtr"):
         for i in range(1, 17):
             v = synth_value(col, "text", i)
             assert len(v) == 5, (col, i, v)
@@ -1636,11 +1634,11 @@ def _self_test():
     assert synth_value("Foo", "text", 5) == synth_value("Foo", "text", 5, "dimension", None), (
         "dim_cap=None (the default) must be a no-op even for a dimension-role column")
 
-    # ---- classify_source: the real 72-column LAC Pedidosya shape, condensed ----
+    # ---- classify_source: the real 72-column WorkbookI shape, condensed ----
     stub_source = (
         "\t\t\t\tlet\n"
         "\t\t\t\t\tSource = Table.FromRows({}, type table "
-        '[#"Acct Prod Id" = text, Channel = text, Amt = number, '
+        '[#"Rec Item Id" = text, Channel = text, Amt = number, '
         "Cnt = Int64.Type, Flag = logical, Dt = datetime])\n"
         "\t\t\t\tin\n"
         "\t\t\t\t\tSource\n"
@@ -1648,14 +1646,14 @@ def _self_test():
     kind, cols = classify_source(stub_source)
     assert kind == "stub", kind
     assert cols == [
-        ("Acct Prod Id", "text"), ("Channel", "text"), ("Amt", "number"),
+        ("Rec Item Id", "text"), ("Channel", "text"), ("Amt", "number"),
         ("Cnt", "Int64.Type"), ("Flag", "logical"), ("Dt", "datetime"),
     ], cols
 
     # ---- classify_source: a Param table's real literal rows must NEVER read as an empty stub ----
     param_source = (
         "\t\t\t\tlet\n"
-        '\t\t\t\t\tSource = Table.FromRows({{"Gross Data"}, {"Dedup Data"}}, '
+        '\t\t\t\t\tSource = Table.FromRows({{"Raw Data"}, {"Unique Data"}}, '
         "type table [Value = text])\n"
         "\t\t\t\tin\n"
         "\t\t\t\t\tSource\n"
@@ -1694,8 +1692,8 @@ def _self_test():
 
     # ---- REGRESSION: the double-header-promotion bug ----
     # Excel.Workbook(..., true) already promotes headers. An extra Table.PromoteHeaders call
-    # after it is exactly the bug found manually on LAC Pedidosya, corrupting every column name.
-    body = build_excel_m("/tmp/x.xlsx", "Sheet1", [("Acct Prod Id", "text"), ("Cnt", "Int64.Type")])
+    # after it is exactly the bug found manually on WorkbookI, corrupting every column name.
+    body = build_excel_m("/tmp/x.xlsx", "Sheet1", [("Rec Item Id", "text"), ("Cnt", "Int64.Type")])
     assert "Table.PromoteHeaders" not in body, (
         "generated M must never call Table.PromoteHeaders after an Excel.Workbook(..., true) "
         "source -- that source already promoted headers; a second promotion corrupts every "
@@ -1703,7 +1701,7 @@ def _self_test():
     )
     assert "Excel.Workbook(File.Contents(" in body and ", true)" in body
     assert 'Kind="Sheet"' in body
-    assert '{"Acct Prod Id", type text}' in body
+    assert '{"Rec Item Id", type text}' in body
     assert '{"Cnt", Int64.Type}' in body
 
     # ---- rewrite_partition_source: replaces ONLY the source block, nothing else ----
@@ -1715,11 +1713,11 @@ def _self_test():
     assert "annotation PBI_ResultType = Table" in rewritten
 
     # ---- m_unquote / tmdl_unquote round-trip the two quoting conventions this pipeline uses ----
-    assert m_unquote('#"Billable BID"') == "Billable BID"
+    assert m_unquote('#"Flag BID"') == "Flag BID"
     assert m_unquote("Channel") == "Channel"
-    assert tmdl_unquote("'Param Gross vs. Dedup Data'") == "Param Gross vs. Dedup Data"
+    assert tmdl_unquote("'Param Gross vs. Unique Data'") == "Param Gross vs. Unique Data"
     assert tmdl_unquote("'It''s Fine'") == "It's Fine"
-    assert tmdl_unquote("gbo_lac_monthly.pedi") == "gbo_lac_monthly.pedi"
+    assert tmdl_unquote("schema_x.table_monthly") == "schema_x.table_monthly"
 
     # ---- coerce_hyper_value: real Python values coerced to each M type, None stays None ----
     assert coerce_hyper_value(None, "text") is None
@@ -1843,13 +1841,13 @@ def _self_test():
             scratch = td / "scratch"
             scratch.mkdir()
 
-            # A fixture extract with 3 real rows: source columns "acct_id" (text) and
+            # A fixture extract with 3 real rows: source columns "rec_id" (text) and
             # "cnt_raw" (int) -- "cnt_raw" is deliberately mapped to a DIFFERENT display name
-            # ("Cnt Nice Name") below, to exercise the display-name != source-name case.
+            # ("Cnt Label") below, to exercise the display-name != source-name case.
             known_rows = [["ACCT-REAL-1", 111], ["ACCT-REAL-2", 222], ["ACCT-REAL-3", 333]]
             hyper_path = _make_fixture_hyper(
                 scratch, "t1",
-                [("acct_id", SqlType.text), ("cnt_raw", SqlType.big_int)],
+                [("rec_id", SqlType.text), ("cnt_raw", SqlType.big_int)],
                 known_rows,
             )
             archive_dir = td / "corpus"
@@ -1865,8 +1863,8 @@ def _self_test():
                     "provenance": "twb",
                     "connections": [{"class": "hyper", "dbname": dbname}],
                     "columns": [
-                        {"name": "Acct Id", "source_column": "acct_id"},
-                        {"name": "Cnt Nice Name", "source_column": "cnt_raw"},
+                        {"name": "Rec Id", "source_column": "rec_id"},
+                        {"name": "Cnt Label", "source_column": "cnt_raw"},
                         {"name": "Calc Field", "source_column": ""},   # no physical source
                     ],
                 }
@@ -1877,28 +1875,28 @@ def _self_test():
                 # Real rows must be a SUBSET of the known fixture values, never synthetic-shaped
                 # ("<ColumnName> <i>" text / "1000+i" int) -- prove it by checking the actual
                 # sampled cell values against the literal fixture rows.
-                acct_idx = result["colindex"]["acct_id"]
-                sampled_accts = {row[acct_idx] for row in result["rows"]}
+                rec_idx = result["colindex"]["rec_id"]
+                sampled_accts = {row[rec_idx] for row in result["rows"]}
                 assert sampled_accts == {"ACCT-REAL-1", "ACCT-REAL-2", "ACCT-REAL-3"}, sampled_accts
-                assert not any(v.startswith("Acct Id ") for v in sampled_accts if
+                assert not any(v.startswith("Rec Id ") for v in sampled_accts if
                                isinstance(v, str))
 
                 # ---- full column-resolution: display name != source name works correctly ----
-                columns = [("Acct Id", "text"), ("Cnt Nice Name", "Int64.Type"),
+                columns = [("Rec Id", "text"), ("Cnt Label", "Int64.Type"),
                            ("Calc Field", "text")]
                 rows_data, col_detail, n_rows = _resolve_table_columns(
                     ir_table_real, columns, result)
                 assert n_rows == 3
                 by_name = {cd["name"]: cd for cd in col_detail}
-                assert by_name["Acct Id"]["source"] == "real"
-                assert by_name["Cnt Nice Name"]["source"] == "real"
+                assert by_name["Rec Id"]["source"] == "real"
+                assert by_name["Cnt Label"]["source"] == "real"
                 assert by_name["Calc Field"]["source"] == "synthetic", (
                     "a column with no source_column must fall back to synthetic, never a "
                     "formula evaluation"
                 )
-                # The "Cnt Nice Name" column's VALUES must be the real cnt_raw values (111/222/333)
+                # The "Cnt Label" column's VALUES must be the real cnt_raw values (111/222/333)
                 # read via the DIFFERENT source column name, not the display name.
-                cnt_col_idx = [i for i, (n, _) in enumerate(columns) if n == "Cnt Nice Name"][0]
+                cnt_col_idx = [i for i, (n, _) in enumerate(columns) if n == "Cnt Label"][0]
                 cnt_values = {row[cnt_col_idx] for row in rows_data}
                 assert cnt_values == {111, 222, 333}, cnt_values
                 # The synthetic-fallback column must use the ORDINARY synth_value() shape.
@@ -1976,15 +1974,15 @@ def _self_test():
                 "table T\n"
                 "\tlineageTag: 00000000-0000-0000-0000-000000000000\n"
                 "\n"
-                "\tcolumn 'Acct Id'\n\t\tdataType: string\n\n"
-                "\tcolumn 'Cnt Nice Name'\n\t\tdataType: int64\n\n"
+                "\tcolumn 'Rec Id'\n\t\tdataType: string\n\n"
+                "\tcolumn 'Cnt Label'\n\t\tdataType: int64\n\n"
                 "\tcolumn 'Calc Field'\n\t\tdataType: string\n\n"
                 "\tpartition T = m\n"
                 "\t\tmode: import\n"
                 "\t\tsource =\n"
                 "\t\t\t\tlet\n"
-                '\t\t\t\t\tSource = Table.FromRows({}, type table [#"Acct Id" = text, '
-                '#"Cnt Nice Name" = Int64.Type, #"Calc Field" = text])\n'
+                '\t\t\t\t\tSource = Table.FromRows({}, type table [#"Rec Id" = text, '
+                '#"Cnt Label" = Int64.Type, #"Calc Field" = text])\n'
                 "\t\t\t\tin\n"
                 "\t\t\t\t\tSource\n"
                 "\n\tannotation PBI_ResultType = Table\n",
@@ -1998,8 +1996,8 @@ def _self_test():
                     "tableau_name": "ds1", "caption": "T", "provenance": "twb",
                     "connections": [{"class": "hyper", "dbname": dbname}],
                     "columns": [
-                        {"name": "Acct Id", "source_column": "acct_id"},
-                        {"name": "Cnt Nice Name", "source_column": "cnt_raw"},
+                        {"name": "Rec Id", "source_column": "rec_id"},
+                        {"name": "Cnt Label", "source_column": "cnt_raw"},
                         {"name": "Calc Field", "source_column": ""},
                     ],
                 }],
@@ -2019,8 +2017,8 @@ def _self_test():
                 wb2 = openpyxl.load_workbook(excel_path2)
                 ws2 = wb2[wb2.sheetnames[0]]
                 header = [c.value for c in ws2[1]]
-                assert header == ["Acct Id", "Cnt Nice Name", "Calc Field"], header
-                acct_col = header.index("Acct Id")
+                assert header == ["Rec Id", "Cnt Label", "Calc Field"], header
+                acct_col = header.index("Rec Id")
                 acct_cells = {ws2.cell(row=r, column=acct_col + 1).value for r in range(2, 5)}
                 assert acct_cells == {"ACCT-REAL-1", "ACCT-REAL-2", "ACCT-REAL-3"}, acct_cells
 
@@ -2044,8 +2042,8 @@ def _self_test():
     # ---- relationships.tmdl parsing: real key-based-join shape (bare table, quoted column) ----
     _rel_text = (
         "relationship 21c1df50-2e3f-4567-8901-2a3b4c5d6e7f\n"
-        "\tfromColumn: bdr_lead_meetings_tableau.'Leadid (Bdr Lead Meetings Tableau)'\n"
-        "\ttoColumn: bdr_lead_global_tableau.Leadid\n"
+        "\tfromColumn: source_x_meetings.'RecId (Source X Meetings)'\n"
+        "\ttoColumn: source_x_global.RecId\n"
         "\n"
         "relationship 159fb8d8-c48a-4f8f-a2dd-2c429acb4b8b\n"
         "\tfromColumn: 'Table With Space'.'Col A'\n"
@@ -2053,8 +2051,8 @@ def _self_test():
     )
     _edges = parse_relationships_tmdl(_rel_text)
     assert _edges == [
-        ("bdr_lead_meetings_tableau", "Leadid (Bdr Lead Meetings Tableau)",
-         "bdr_lead_global_tableau", "Leadid"),
+        ("source_x_meetings", "RecId (Source X Meetings)",
+         "source_x_global", "RecId"),
         ("Table With Space", "Col A", "Other", "Col"),
     ], _edges
 

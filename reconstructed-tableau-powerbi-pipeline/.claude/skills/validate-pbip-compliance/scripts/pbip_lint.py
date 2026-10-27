@@ -189,7 +189,7 @@ def _tmdl_declared_name(rest: str) -> str:
     An unquoted TMDL identifier may contain any character except whitespace, `.`, `=`, `:` or
     `'` (those force quoting -- see names.py's `_NEEDS_QUOTE` / tmdl_writer.py's `_q`), so `/`,
     `%`, `-`, parens etc. are all legal bare-name characters. A `\\w+`-only match truncates a
-    real name like `Token/PAN` down to `Token` and reports a false collision against an
+    real name like `Token/Source` down to `Token` and reports a false collision against an
     unrelated column actually named `Token`.
     """
     rest = rest.strip()
@@ -389,12 +389,12 @@ def check_filter_literal_types(f: Findings, project: str, root: Path) -> None:
 def check_duplicate_member_names(f: Findings, project: str, root: Path) -> None:
     """A column/measure name that collides only by case with another name on the same table is
     schema-valid and reads fine in a diff, but TOM's own name collection ignores case
-    (Windows/SQL Server convention) -- so 'BIC Compliance Check' and 'Bic Compliance Check' are
+    (Windows/SQL Server convention) -- so 'SAMPLE CHECK ALPHA' and 'Sample Check Alpha' are
     the same name to it even though they are different strings on disk. Desktop refuses to open
     the file at all: "Failed to add a deserialized Column object into the model ... Item '...'
     already exists in the collection." A real corpus workbook produced exactly this: a physical
-    column captioned "Bic Compliance Check" alongside a calculated-field alias of it captioned
-    "BIC Compliance Check".
+    column captioned "Sample Check Alpha" alongside a calculated-field alias of it captioned
+    "SAMPLE CHECK ALPHA".
     """
     for sm_dir in root.glob("*.SemanticModel"):
         for table_label, names in table_member_names(sm_dir).items():
@@ -644,8 +644,8 @@ def check_aggregate_wraps_measure(f: Findings, project: str, root: Path) -> None
     late, per-visual surfacing `check_dax_references` exists for, but from the opposite
     direction.
 
-    Confirmed on a real workbook (Caribbean - Drilldown (QBR), `Gross Trx Amt Decline Rate` =
-    `DIVIDE(SUM('caribbean'[Gross Trx Amt Declined]), ...)`, where `Gross Trx Amt Declined` has
+    Confirmed on a real workbook (WorkbookD, `Amount Decline Rate` =
+    `DIVIDE(SUM('tbl_d'[Amount Declined]), ...)`, where `Amount Declined` has
     no aggregate of its own and was promoted to a measure elsewhere in the same model by the
     build's own `_aggregate_map` fixpoint) -- confirmed corpus-wide across 3 of 6 reference
     workbooks (135 instances) before the generator (`dax.py`) was fixed to decline this shape

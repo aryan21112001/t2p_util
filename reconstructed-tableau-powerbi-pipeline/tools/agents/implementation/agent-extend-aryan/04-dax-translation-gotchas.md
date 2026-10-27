@@ -94,7 +94,7 @@ differently.
 
 ### `is_aggregate()` false-positived on a bracketed field NAME containing a function-like substring
 Same shape as `extract.py`'s `classify_formula` bug (see `02-extraction-gotchas.md`) — a field
-literally named `[Card Count (copy)_...]` matched `_AGG_CALL`'s `\bCOUNT\s*\(` regex even though
+literally named `[Item Count (copy)_...]` matched `_AGG_CALL`'s `\bCOUNT\s*\(` regex even though
 "Count (" here is part of a NAME, never an invocation; a real function call is always OUTSIDE
 `[...]` brackets. **Fix:** strip bracketed field references before matching, same as the
 string-literal strip. **Status:** ✅ Fixed independently in both files (same bug, two call
@@ -163,7 +163,7 @@ internally, since `dax.py`'s date-vs-datetime handling still needs that distinct
 
 ## Measure-promotion / column-vs-measure bugs
 
-### `cl.Slice By`-style promoted measure needed `SELECTEDVALUE`, not a bare column reference
+### `cl.Selector`-style promoted measure needed `SELECTEDVALUE`, not a bare column reference
 A pure branch-selection `IF(cond, 'T'[ColA], IF(cond, 'T'[ColB], ...))` is legal as a calculated
 COLUMN (row context makes each branch unambiguous) but illegal as a MEASURE (no row context at
 the top level) — "a single value for column... cannot be determined". **Fix:** `_resolver`

@@ -20,7 +20,7 @@ the workbook, in addition to the RANK/RANK_DENSE shape `extend-tablecalc-rank` a
 
      NOTE on the real corpus this was built against: shape (4) is real and self-tested (see
      `_selftest()`), but on `WorkbookB Dashboard` it promotes NOTHING new -- its 4 real
-     parameter-driven `WINDOW_SUM` residue items (`Rolling Lookups`,
+     parameter-driven `WINDOW_SUM` residue items (`Rolling Lookup`,
      `User Specified Moving Average/Rolling ...`) all ALSO carry `tc_spec.ordering_type=="Rows"`
      with `has_address=False`, i.e. Tableau recorded no named addressing field for them at all --
      the same dead end shape (3)'s own siblings hit. The literal-vs-parameter distinction was
@@ -872,11 +872,11 @@ def _selftest():
     # ---- find_candidates + generate_dax end-to-end, no real build on disk -----------------
     ir = {"tables": [
         {"tableau_name": "ds1", "caption": "T1", "columns": [
-            {"name": "Deflections", "tableau_name": "[deflections]"},
+            {"name": "Metric", "tableau_name": "[deflections]"},
             {"name": "Month", "tableau_name": "[month]"},
             {"name": "Partner", "tableau_name": "[partner]"},
         ], "calcs": [
-            {"name": "Rolling Deflections", "tableau_name": "[Calculation_1]",
+            {"name": "Rolling Metric", "tableau_name": "[Calculation_1]",
              "kind": "tablecalc", "formula": "WINDOW_SUM(SUM([deflections]),-6,0)",
              "tc_spec": {"ws_order_fields": [{"field": "Month", "worksheet": "W1"},
                                               {"field": "Partner", "worksheet": "W2"}]}},
@@ -893,12 +893,12 @@ def _selftest():
     ]}
     ir["parameters"] = [{"name": "Window Size", "tableau_name": "[Parameter 4]", "aliases": []}]
     na = {"tables": {"ds1": "T1"},
-          "columns": {"T1 | deflections": "Deflections", "T1 | month": "Month",
+          "columns": {"T1 | deflections": "Metric", "T1 | month": "Month",
                       "T1 | partner": "Partner"},
           "measures": {}, "parameters": {"Window Size": {"measure": "Window Size Selected"}},
-          "emitted": ["T1 | Deflections", "T1 | Month", "T1 | Partner"]}
+          "emitted": ["T1 | Metric", "T1 | Month", "T1 | Entity"]}
     residue = {"calc_residue": [
-        {"table": "T1", "subject": "Rolling Deflections",
+        {"table": "T1", "subject": "Rolling Metric",
          "reason": "table calculation -- addressing/partitioning is not in the formula text"},
         {"table": "T1", "subject": "Lookup Passthrough",
          "reason": "table calculation -- addressing/partitioning is not in the formula text"},
@@ -910,10 +910,10 @@ def _selftest():
     cands = find_candidates(ir, na, residue)
     promoted_names = sorted(c["name"] for c in cands if c["status"] == "candidate")
     assert promoted_names == [
-        "Dynamic Rolling", "Lookup Passthrough", "Rolling Deflections — by Month",
-        "Rolling Deflections — by Partner", "Row Number",
+        "Dynamic Rolling", "Lookup Passthrough", "Rolling Metric — by Month",
+        "Rolling Metric — by Partner", "Row Number",
     ], promoted_names
-    print("OK  find_candidates: worksheet disagreement on Rolling Deflections fans out into 2 "
+    print("OK  find_candidates: worksheet disagreement on Rolling Metric fans out into 2 "
           "named candidates instead of one decline; LOOKUP passthrough and INDEX() need no "
           "worksheet-agreement at all")
 
@@ -921,20 +921,20 @@ def _selftest():
     by_name = {c["name"]: c for c in cands if c["status"] == "candidate"}
 
     expr, refs = generate_dax(t, na, "T1", by_name["Lookup Passthrough"], ir)
-    assert expr == "MAX('T1'[Deflections])", expr
+    assert expr == "MAX('T1'[Metric])", expr
     print(f"OK  generate_dax lookup_passthrough: {expr}")
 
     expr, refs = generate_dax(t, na, "T1", by_name["Row Number"], ir)
     assert expr == "RANKX(ALLEXCEPT('T1', 'T1'[Month]), 'T1'[Month], , ASC, Dense)", expr
     print(f"OK  generate_dax index: {expr}")
 
-    expr, refs = generate_dax(t, na, "T1", by_name["Rolling Deflections — by Month"], ir)
-    assert "TOPN(7," in expr and "SUMX(__window, SUM('T1'[Deflections]))" in expr, expr
+    expr, refs = generate_dax(t, na, "T1", by_name["Rolling Metric — by Month"], ir)
+    assert "TOPN(7," in expr and "SUMX(__window, SUM('T1'[Metric]))" in expr, expr
     print(f"OK  generate_dax window_fixed: {expr}")
 
     ratio_shape = {"kind": "window_ratio_fixed", "inner_num": "SUM([deflections])",
                    "inner_den": "SUM([deflections])", "n": 7}
-    ratio_cand = {**by_name["Rolling Deflections — by Month"], "shape": ratio_shape}
+    ratio_cand = {**by_name["Rolling Metric — by Month"], "shape": ratio_shape}
     expr, refs = generate_dax(t, na, "T1", ratio_cand, ir)
     assert expr.startswith("VAR __window") and "DIVIDE(SUMX(__window" in expr, expr
     print(f"OK  generate_dax window_ratio_fixed: {expr}")
@@ -942,10 +942,10 @@ def _selftest():
     expr, refs = generate_dax(t, na, "T1", by_name["Dynamic Rolling"], ir)
     assert "ADDCOLUMNS(ALLEXCEPT('T1', 'T1'[Month])" in expr, expr
     assert "+ (-[Window Size Selected])" in expr, expr
-    assert "SUMX(__window, SUM('T1'[Deflections]))" in expr, expr
+    assert "SUMX(__window, SUM('T1'[Metric]))" in expr, expr
     print(f"OK  generate_dax window_dynamic (parameter-driven window): {expr}")
 
-    bad_cand = {**by_name["Rolling Deflections — by Month"], "addr_field": "Nonexistent"}
+    bad_cand = {**by_name["Rolling Metric — by Month"], "addr_field": "Nonexistent"}
     try:
         generate_dax(t, na, "T1", bad_cand, ir)
         raise AssertionError("expected dax.Unsupported for an unresolvable addressing field")

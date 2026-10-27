@@ -24,8 +24,8 @@ one — reported in `RESIDUE.md`, never silently dropped. **Status:** ✅ Fixed,
 `_resolve_field`'s filter call site never passed a table hint to `by_spelling` at all — the exact
 global-first-match hazard `names.py`'s own fix (see `03-name-authority-gotchas.md`) already
 named for CALC resolution, recurring independently because that fix never touched this call site.
-Real corpus (WorkbookA): Activation's own filter on `For View = "Trend"` resolved to
-`Recommendations[For View]` instead — matched ZERO of 247,425 real rows, blanking every visual
+Real corpus (WorkbookA): Beta's own filter on `View Flag = "Trend"` resolved to
+`Gamma[View Flag]` instead — matched ZERO of 247,425 real rows, blanking every visual
 that filtered through it. 281 real filter sites hit this for one caption alone, across 6 pages.
 **Fix:** `_resolve_field` gained a `candidate_tables` parameter (`_visual_filters` passes the
 visual's own `query_entities`), tried in order as the PREFERRED table before the old global-only
@@ -33,7 +33,7 @@ fallback. **Status:** ✅ Fixed (found on WorkbookA). **Not sufficient alone** �
 `02-extraction-gotchas.md`'s `name_map` backfill fix, found immediately after verifying THIS fix
 live and discovering the right table still didn't have a matching NAME for the field. Both are
 needed together any time the same caption exists across 2+ datasources with inconsistent
-captioning. **Verified live**: `'Activation'[For View]` now carries its own real domain
+captioning. **Verified live**: `'Beta'[View Flag]` now carries its own real domain
 (`"Trend"` included); the real card value resolves to `0.0875`, not blank.
 
 ### Same hazard, one level up: `_query_state` had NO table-preference logic AT ALL — only `_visual_filters` did
@@ -43,10 +43,10 @@ Tooltip/Text-shelf fields, i.e. the visual's primary data binding, not just its 
 `_resolve_field` with NO table hint anywhere, at all three of its own call sites. A worksheet's
 Category/axis field is just as exposed to the SAME caption-collision hazard as a filter's field;
 nothing before this fix protected it. Real corpus (WorkbookA), confirmed live: fixing
-`extract.py`'s own caption gap (see `02-extraction-gotchas.md`) widened the caption "Prod Id" to 5
-tables at once; "2.3 Issuer YoY Growth"'s barChart then resolved its Category field to
-`Activation.Prod Id` (global first-match) while its Y measure stayed on `Acquisition.Issuer - YoY
-Growth` — two different tables for ONE worksheet's own shelves, confirmed via the visual's own
+`extract.py`'s own caption gap (see `02-extraction-gotchas.md`) widened the caption "Item Id" to 5
+tables at once; "Sheet 5 - Growth Rate A"'s barChart then resolved its Category field to
+`Beta.Item Id` (global first-match) while its Y measure stayed on `Alpha.Group - YoY Growth
+` — two different tables for ONE worksheet's own shelves, confirmed via the visual's own
 `visual.json`. **Fix:** `_query_state` now pre-scans ALL of a worksheet's own encodings once, up
 front, collecting the table(s) any MEASURE resolves to (a measure caption rarely collides the way
 a plain dimension caption does, and there's no built query state yet to seed the hint from, unlike
@@ -54,7 +54,7 @@ the filter case) — then threads that as `candidate_tables` through every one o
 `_resolve_field` call sites (the primary Rows/Cols loop, the Colour/Size/Tooltip EXTRA_WELLS loop,
 and the Text-shelf fallback). **Status:** ✅ Fixed and self-tested (both the collision-preference
 case and a no-measure-to-anchor-on no-regression case). **Confirmed this fix is correct in
-isolation** (the visual's Category and Y fields now both resolve to `Acquisition`, matching) —
+isolation** (the visual's Category and Y fields now both resolve to `Alpha`, matching) —
 **but this did NOT fix the real Desktop symptom.** The barChart STILL renders zero bars (category
 labels only, no value marks, no Desktop error) after this fix. See
 `01-orchestrator-gotchas.md`'s "fresh rebuild renders several barChart visuals with zero bars, no
@@ -70,12 +70,12 @@ by ANY truthy aggregation code, not just `SUM`/`AVG` shelf-measure lookups, crit
 Tableau's `ATTR()` wrapper (`agg="attr"`), the common case for a plain dimension dropped on
 Tooltip/Color/Text — called `self.na.by_spelling(field, emitted_only=True)` with NO table hint
 at all, unconditionally. Real corpus (WorkbookA): `_query_state`'s own `anchor_tables` correctly held
-`("Acquisition",)` for "2.3 Issuer YoY Growth"'s barChart (confirmed via the SAME worksheet's Y
-measure resolving correctly) — the chart's Tooltip field (`Issr`, `agg="attr"`) STILL resolved to
-`Recommendations.Issr` instead, because the agg branch never consulted `anchor_tables` in the
-first place. Combined with a same-session new `Acquisition↔Activation` relationship chaining
-through the pre-existing zero-overlap `Activation↔Recommendations` relationship, this forced the
-WHOLE VISUAL to zero rows under any Acquisition filter (confirmed via Performance Analyzer's own
+`("Alpha",)` for "Sheet 5 - Growth Rate A"'s barChart (confirmed via the SAME worksheet's Y
+measure resolving correctly) — the chart's Tooltip field (`Grp`, `agg="attr"`) STILL resolved to
+`Gamma.Grp` instead, because the agg branch never consulted `anchor_tables` in the
+first place. Combined with a same-session new `Alpha↔Beta` relationship chaining
+through the pre-existing zero-overlap `Beta↔Gamma` relationship, this forced the
+WHOLE VISUAL to zero rows under any Alpha filter (confirmed via Performance Analyzer's own
 captured DAX query showing `RowCount: 0`) — not wrong values, the entire chart empty. **Fix:**
 the `if agg:` branch now tries `by_spelling(field, table=cand, emitted_only=True)` for each
 `candidate_tables` entry FIRST, falling to the pre-existing global `by_spelling(field,
@@ -88,12 +88,12 @@ branch silently skipping the existing scoping mechanism) has now recurred twice.
 ### `_query_state`'s `anchor_tables` seed is empty for a worksheet with ZERO measures anywhere
 The `anchor_tables` mechanism (see the two `_query_state` entries above) is seeded ENTIRELY from
 measures found in a worksheet's own encodings — a worksheet that is a pure dimension/label
-display (e.g. "show this view's own `Ctry` as text," no measure on any shelf at all) gives that
+display (e.g. "show this view's own `Ctr` as text," no measure on any shelf at all) gives that
 scan nothing to find, so `anchor_tables` stays `()` and every field in it falls straight through
 to the unscoped global fallback regardless of any of the fixes above. Real corpus (WorkbookA): 98 of
-382 worksheets have this zero-measure shape; confirmed on `Mkt_acti`'s own `Ctry` field (`agg:
-None`, the ONLY encoding on the whole worksheet) landing on `Recommendations.Ctry` instead of
-`Activation.Ctry`. **Fix:** `extract.py`'s `extract_worksheets()` now captures each worksheet's
+382 worksheets have this zero-measure shape; confirmed on `Sheet_x`'s own `Ctr` field (`agg:
+None`, the ONLY encoding on the whole worksheet) landing on `Gamma.Ctr` instead of
+`Beta.Ctr`. **Fix:** `extract.py`'s `extract_worksheets()` now captures each worksheet's
 own declared Tableau datasource(s) as `own_datasources` (`<table><view><datasources><datasource
 name='federated.XXXX'>`, the SAME raw key `na.table()` is allocated under — mirrors the
 dashboard-zone `zone["param"]` fix in `_visual`, just at worksheet scope instead of zone scope).

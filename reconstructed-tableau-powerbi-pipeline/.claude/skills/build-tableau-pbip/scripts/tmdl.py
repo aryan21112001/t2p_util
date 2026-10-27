@@ -115,9 +115,9 @@ _DATETIME_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2
 
 
 def m_ident(name):
-    """Quote a name as a Power Query (M) identifier: `#"Billable BID"`, not `'Billable BID'`.
+    """Quote a name as a Power Query (M) identifier: `#"Flag BID"`, not `'Flag BID'`.
 
-    M and TMDL use DIFFERENT quoting. Reusing tmdl_ident here produced `'Billable BID' = text`
+    M and TMDL use DIFFERENT quoting. Reusing tmdl_ident here produced `'Flag BID' = text`
     inside a `type table [...]` ascription, which is not valid M -- and since most Tableau captions
     contain spaces, nearly every stub partition was malformed. Nothing caught it because the
     partition body is opaque text to a TMDL-level check.
@@ -278,7 +278,7 @@ def _calc_column(pbi, name, expr, summarize, dtype=None, folder=None, format_str
     `dtype`, when given, emits an explicit `dataType:`. Desktop itself omits this for a calculated
     column (confirmed against docs/examples/GroundTruth) -- but that example is never the target
     of a report filter. A real workbook (WorkbookB Dashboard) that DOES filter a calculated boolean
-    column ('cl.Is Selected Slice By?') failed to load with "Broken_Filters": every OTHER filtered
+    column ('cl.Is Selected Selector?') failed to load with "Broken_Filters": every OTHER filtered
     column in that same report is a plain source column (always has an explicit dataType) and
     loaded fine, so a calculated column's dataType being left for the engine to infer is the one
     variable that differs. Declaring it explicitly, using the type Tableau itself already recorded
@@ -422,8 +422,8 @@ def _formula_shape(formula):
     blended tables are Tableau's ONLY signal for a blend key (see `_relationships`'s docstring
     -- there is no stored linking-field), but a shared name says nothing about whether the two
     sides compute the value the SAME way. Real corpus regression (WorkbookA_
-    v2): `Acquisition.'Quarter Year'` = `[quarter]+" "+STR([year_nm])` (e.g. "Q3 2025"),
-    `Activation.'Quarter Year'` = bare `[qtr]` (e.g. "Apr25-Jun25") -- same name, same dataType
+    v2): `Alpha.'Period Label'` = `[quarter]+" "+STR([year_nm])` (e.g. "Q3 2025"),
+    `Beta.'Period Label'` = bare `[qtr]` (e.g. "Apr25-Jun25") -- same name, same dataType
     (string), but the two strings never equal each other for any real row, so the many-to-many
     relationship built on them can never produce a matching row. Neither side's formula is
     wrong; they simply are not the same key.
@@ -512,7 +512,7 @@ class TmdlModel:
         -- so `[Parameters].[X]` in a calc's formula makes that calc a measure-referencer exactly
         like `SUM(...)` does, even though the formula has no aggregate function and Tableau itself
         would call the calc a plain dimension. Missing this is what let a real workbook (WorkbookB
-        Dashboard) emit `cl.Is Selected Slice By?` as a calculated COLUMN whose DAX referenced a
+        Dashboard) emit `cl.Is Selected Selector?` as a calculated COLUMN whose DAX referenced a
         parameter's measure: the model loaded (no preflight check saw it, because the existing
         column-references-measure check only matches the QUALIFIED 'Table'[Column] shape, and a
         parameter reference is the unqualified [Name] shape `resolve_param` deliberately uses), but
@@ -540,8 +540,8 @@ class TmdlModel:
         and if the referenced one gets promoted to a measure by THIS fixpoint (e.g. because its
         formula reads `[Parameters].[...]`), the referencing calc must be promoted too or it
         emits a calculated COLUMN referencing a MEASURE on a *sibling* table -- Desktop rejects
-        this at load. Confirmed on a real workbook (WorkbookB Dashboard): `cl.Rolling 7 Day Start -
-        Deflection Settled` (table `Insights`) references `cl.Current Period - End Date` (table
+        this at load. Confirmed on a real workbook (WorkbookB Dashboard): `cl.Rolling Window Start -
+        Deflection Settled` (table `Insights`) references `cl.Active Period - End Date` (table
         `Currencies`, promoted for exactly the parameter reason above); the same-table-only
         version of this fixpoint could not see the cross-table dependency and 25 calcs reached
         preflight as invalid DAX. Fixed by falling back to `_global_field_index()` -- first-match
@@ -611,16 +611,16 @@ class TmdlModel:
         with every bare column reference left bare -- safe, because the iterator itself supplies
         the row context) over `resolve_measure_safe`'s SELECTEDVALUE-wrap. SELECTEDVALUE is
         correct for a genuinely dimension-like reference (`resolve_measure_safe`'s own original
-        "cl.Slice By" bug: a branch-selection formula picking between whole COLUMNS by name) -- it
+        "cl.Selector" bug: a branch-selection formula picking between whole COLUMNS by name) -- it
         is WRONG for a value Tableau's own shelf usage already wraps in SUM/AVERAGE, because a
         bare row-level column has many distinct real values across the table, and SELECTEDVALUE
-        returns BLANK whenever more than one exists. Real corpus (WorkbookA): `Penetration` --
-        formula `(IF [Parameters].[Opcert or User Input]="Opcert" THEN [issr_cif_cy] ... END) /
-        [Parameters].[Retail Customers]`, promoted to a measure purely by the parameter division,
-        shelf-used as `SUM(Penetration)` on its own worksheet -- emitted as
-        `DIVIDE(SELECTEDVALUE('Acquisition'[issr_cif_cy]), ...)`, BLANK the instant more than one
+        returns BLANK whenever more than one exists. Real corpus (WorkbookA): `Share` --
+        formula `(IF [Parameters].[Option or User Input]="Option" THEN [metric_b_cy] ... END) /
+        [Parameters].[Group Entities]`, promoted to a measure purely by the parameter division,
+        shelf-used as `SUM(Share)` on its own worksheet -- emitted as
+        `DIVIDE(SELECTEDVALUE('Alpha'[metric_b_cy]), ...)`, BLANK the instant more than one
         row exists (confirmed live against real Desktop: every real row), where Tableau's own
-        intent (the shelf's SUM) is `SUMX('Acquisition', DIVIDE([issr_cif_cy], ...))` -- a real,
+        intent (the shelf's SUM) is `SUMX('Alpha', DIVIDE([metric_b_cy], ...))` -- a real,
         non-blank number once correctly inlined. The Power BI card bound to this measure showed
         "(Blank)" against a real Tableau value of 7.4%.
 
@@ -748,7 +748,7 @@ class TmdlModel:
         allocation request as a re-lookup of an object it had already named -- correct when the
         same source object is legitimately referenced twice, silently wrong when it is actually
         two DIFFERENT source tables whose `(tableau_name or caption)` key happened to collide (the
-        VRM Compliance Dashboard bug: two distinct tds-resolved tables, two different .hyper
+        WB Sample Dashboard bug: two distinct tds-resolved tables, two different .hyper
         extracts, both had tableau_name=None and caption="Data"). Emission then writes both under
         one file path and the second write clobbers the first -- an entire table disappears with
         no residue entry. Caught HERE, pre-emit, before any TMDL reaches disk.
@@ -781,7 +781,7 @@ class TmdlModel:
             for e in ws["encodings"]:
                 if e.get("agg"):
                     wanted.add((e["field"], e["agg"].lower()))
-            # A Measure Names/Values pivot ("1W - Table") carries its own aggregated field list
+            # A Measure Names/Values pivot ("Sheet 1 - Table") carries its own aggregated field list
             # OUTSIDE `encodings` (see extract.py's `_measure_names_pivot`) -- missing this left
             # every pivoted field with an agg (e.g. "sum:Order Detail Matches") silently bound to
             # its bare, unaggregated column instead of a real SUM measure: a Power BI table with
@@ -799,10 +799,10 @@ class TmdlModel:
         # emitted a bare `SUM(col)`/`AVERAGE(col)` regardless of the column's own TOM dataType.
         # dax.py's Parser already declines/casts this exact shape for an explicit calc formula
         # (see its SUM/AVERAGE-of-string-field branch) -- real corpus regression there was this
-        # SAME column, `issr_total_actv_crd_cy` (string in Activation, double in Key Highlights):
-        # WorkbookA's own `Activation Rate_issr` hit "AVERAGEX cannot work with values of type String"
+        # SAME column, `total_metric_cy` (string in Beta, double in Highlights Page):
+        # WorkbookA's own `Rate_x` hit "AVERAGEX cannot work with values of type String"
         # before that fix. This implicit-shelf-measure path was never covered by it: a WorkbookA
-        # realistic-data run emitted `SUM('Activation'[issr_total_actv_crd_cy])` straight to TMDL,
+        # realistic-data run emitted `SUM('Beta'[total_metric_cy])` straight to TMDL,
         # which loads cleanly (no load-time error) but hard-errors every card/visual that uses it
         # at QUERY time ("The function SUM cannot work with values of type String") -- confirmed
         # live against Desktop via pbi-cli, not just inferred from the TMDL text.
@@ -844,7 +844,7 @@ class TmdlModel:
                 continue
             # Allocate a shelf measure for EVERY table that carries this field caption as a
             # plain column -- not just the first match. When two tables share the same column
-            # caption (e.g. `Issr Actv Crd Cy` in both `Key Highlights` and `Usage Overview`),
+            # caption (e.g. `Metric Cy` in both `Highlights Page` and `Overview Page`),
             # the old single-match path allocated the shelf measure only under the first table;
             # the second table's worksheet then found no promoted measure for its own column
             # and fell back to routing the field to the Category well instead of the Y axis.
@@ -901,7 +901,7 @@ class TmdlModel:
         # TWO indexes, and the order they are consulted is a correctness matter, not a preference.
         #
         # A workbook routinely holds several near-duplicate datasources -- this corpus has four
-        # that each define `[Calculation_475692734733418497]` captioned `month`. A single global
+        # that each define `[Calculation_451116540030822432]` captioned `month`. A single global
         # first-match index binds a calc in the FOURTH datasource to the FIRST one's column. That
         # is not a missing translation, it is a wrong one: valid DAX reading the wrong table's
         # data. So the owning table wins, and the global index is only a fallback for a shelf
@@ -941,7 +941,7 @@ class TmdlModel:
             aggregate-over-a-bare-reference check (SUM/AVERAGE/.../DISTINCTCOUNT of a bare
             'Table'[Name]) can tell a promoted MEASURE apart from an ordinary column -- `resolve`
             above renders both identically, so the parser has no other way to know. Missing this
-            is exactly what let `SUM('caribbean'[Gross Trx Amt Declined])` -- a reference to a
+            is exactly what let `SUM('tbl_d'[Amount Declined])` -- a reference to a
             calc that `_aggregate_map`'s fixpoint promoted to a measure -- reach TMDL as invalid
             DAX, which Desktop rejected at load with Missing_References.
             """
@@ -957,7 +957,7 @@ class TmdlModel:
             and Desktop rejects it at evaluation time: "A single value for column '...' cannot be
             determined... This can happen when a measure or function formula refers to a column
             that contains many values without specifying an aggregation." Confirmed on a real
-            workbook (WorkbookB Dashboard, `cl.Slice By`): promoting it to a measure (to fix the
+            workbook (WorkbookB Dashboard, `cl.Selector`): promoting it to a measure (to fix the
             EARLIER column-references-a-measure bug) was necessary but not sufficient -- its
             formula is a pure branch-selection over plain columns with no aggregate function
             anywhere, exactly the shape this wraps. A MEASURE reference is already a scalar and is
@@ -972,7 +972,7 @@ class TmdlModel:
         # Parameters have the SAME caption-vs-internal-name split as fields, and it bites harder:
         # a formula writes `[Parameters].[Parameter 1]` -- the internal name -- while the Name
         # Authority is keyed by the caption a user sees. Indexing by caption alone left 18 of
-        # Caribbean's calcs declined as "unresolved parameter reference" for parameters that were
+        # WorkbookD's calcs declined as "unresolved parameter reference" for parameters that were
         # sitting in the model the whole time.
         pindex = {}
         for p in self.ir["parameters"]:
@@ -992,12 +992,12 @@ class TmdlModel:
         # datatype per spelling, for STR()'s date-vs-text-coercion check and dax.py's string-typed-
         # aggregate proof (SUM/AVERAGE of a Tableau-string field, `+` concat-vs-add). Same LOCAL-
         # then-GLOBAL lookup as `local`/`glob` above, for the identical reason: a field name is not
-        # unique across tables (e.g. `issr_total_actv_crd_cy` is `string` in `Activation` but
-        # `double` in `Key Highlights`), so a single flat dict keyed by spelling alone lets whichever
-        # table happens to iterate FIRST win globally -- Activation's own calc got Key Highlights'
+        # unique across tables (e.g. `total_metric_cy` is `string` in `Beta` but
+        # `double` in `Highlights Page`), so a single flat dict keyed by spelling alone lets whichever
+        # table happens to iterate FIRST win globally -- Beta's own calc got Highlights Page'
         # dtype, silently defeating the string-cast proof and letting an uncast AVERAGE(<string
         # column>) reach TMDL. Real corpus regression: WorkbookA_v2's
-        # Activation.'Activation Rate_issr', Desktop error "The function AVERAGEX cannot work with
+        # Beta.'Rate_x', Desktop error "The function AVERAGEX cannot work with
         # values of type String".
         local_types, glob_types = {}, {}
         for t in self.ir["tables"]:
@@ -1288,7 +1288,7 @@ class TmdlModel:
                     # BLANK across many real rows); inline the whole formula into an X-iterator
                     # instead, with plain bare-column resolution (the iterator supplies the row
                     # context SELECTEDVALUE was there to work around). See `_shelf_agg_only`'s own
-                    # docstring for the real Desktop symptom this fixes (WorkbookA's "Card Penetration").
+                    # docstring for the real Desktop symptom this fixes (WorkbookA's "Share Metric").
                     shelf_iter = shelf_agg_map.get(fkey(c)) if becomes_measure else None
                     active_resolve = resolve if shelf_iter else (
                         resolve_measure_safe if becomes_measure else resolve)
@@ -1421,7 +1421,7 @@ class TmdlModel:
         under `model` is what made Desktop refuse the whole project:
 
             TMDL Format Error: Unexpected line type: ReferenceObject!
-            Document './model'  Line 6 - '    ref table MSD_Case_Details_Compliance'
+            Document './model'  Line 6 - '    ref table SRC_Details_B'
 
         `discourageImplicitMeasures` is dropped: legal, but Desktop does not write it, and it
         suppresses the implicit aggregations a reader may expect to find.
@@ -1611,7 +1611,7 @@ class TmdlModel:
         for h in t["hierarchies"]:
             levels = []
             for lv in h["levels"]:
-                # emitted_only: a hierarchy level must point at a column that EXISTS. `Issr SRegn`
+                # emitted_only: a hierarchy level must point at a column that EXISTS. `Grp SRegn`
                 # is a Tableau group whose own source did not resolve, so it was declined and no
                 # column was written -- yet the level was still emitted, referencing nothing. Every
                 # other by-name lookup already guarded for this; this was the one that did not.
@@ -1727,7 +1727,7 @@ class TmdlModel:
         # measure built on a parameter (a large fraction of most workbooks' calcs) reads blank on
         # first open, because a multi-row Param table starts with nothing selected and Power BI
         # emits no default-selection state for it. Real corpus example: WorkbookB Dashboard's own
-        # "1D - OI Summary" tab renders nothing until pl.Slice By/pl.Selected Metric/etc. are all
+        # "Sheet 2 - Summary" tab renders nothing until pl.Selector/pl.Chosen Metric/etc. are all
         # manually picked -- this is the fix, not a workaround at the report layer, because it
         # is one already-proven DAX function, not an unconfirmed PBIR page/report filterConfig
         # shape (this project only has visual-level filterConfig confirmed against real Desktop
@@ -1823,7 +1823,7 @@ class TmdlModel:
 
         A name/dtype match is additionally required to have the SAME `_formula_shape` on both
         sides -- same rough class of computation, same field-reference count. A match whose two
-        sides compute the value differently (real corpus regression: `Quarter Year` = concat of
+        sides compute the value differently (real corpus regression: `Period Label` = concat of
         two fields on one side, a bare single-field alias on the other) is excluded and returned
         separately as `shape_mismatches`, not silently treated as a safe key: Tableau's blend
         matches by caption alone and would have joined these same mismatched values, which is
@@ -1831,7 +1831,7 @@ class TmdlModel:
 
         NOT caught here, by design: two columns that are the SAME shape (e.g. both a bare
         physical column) but whose real-world VALUE DOMAINS never overlap (real corpus
-        regression: `for_view` in {opcert, opcert_dist} on one side, {Channel, MCC, ...} on the
+        regression: `view_flag` in {val_a, val_b} on one side, {Channel, MCC, ...} on the
         other) -- nothing in the IR distinguishes that from a legitimately shared dimension; it
         is only detectable once real data exists, which is Agent 4's `validate-blend-key-domains`
         check's job, not this static, build-time one.
@@ -1891,8 +1891,8 @@ class TmdlModel:
         column (`_shared_columns`) -- corpus-agnostic: driven entirely by what a worksheet's own
         field references and the tables' own columns say, nothing about any specific workbook.
 
-        Real Desktop bug this closes: NGPO Dashboard New - AP Version (MSC), "Level 2 Analysis"/
-        "Level 4 Analysis" pages -- multiple worksheets project fields from two federated
+        Real Desktop bug this closes: WorkbookC, "Page L2"/
+        "Page L4" pages -- multiple worksheets project fields from two federated
         datasources at once (Tableau data blending) with NO relationship anywhere in the model
         (this method emitted nothing for real corpus input before this). Desktop: "Can't determine
         relationships between the fields... Underlying Error: InvalidUnconstrainedJoin." Tableau
@@ -1940,8 +1940,8 @@ class TmdlModel:
         # which a small dummy/stub row count makes genuinely unreliable either way.
         #
         # DIRECTION: MULTI-SPOKE HUBS need bothDirections; single-spoke ones do not. Real Desktop
-        # bug this closes (dummy-data-populated "Digital Sales - Leads Dashboard"): its ONE-side
-        # table (`bdr_lead_global_tableau`) has TWO different MANY-side tables joined to it (a
+        # bug this closes (dummy-data-populated "WorkbookH"): its ONE-side
+        # table (`source_x_global`) has TWO different MANY-side tables joined to it (a
         # lead's meetings and its opportunities) -- a plain flat table combining raw columns from
         # both, filtered by a field on either, needs to filter fact -> dimension -> fact, which
         # the default single cross-filter direction (dimension -> fact only) cannot do. Desktop:
@@ -2055,7 +2055,7 @@ class TmdlModel:
         # two already-connected tables (SM-STRUCT-08) is left to ride the stronger path instead of
         # competing with it. Processing in name order instead (tried first) let an incidental,
         # rarely-used pair claim a table's only direct edge, silently pushing a heavily-used real
-        # pair like the NGPO bug's own Level 2/Level 4 blend onto a longer, less faithful path.
+        # pair like the WorkbookC bug's own Level 2/Level 4 blend onto a longer, less faithful path.
         for pair, worksheets in sorted(self._blend_pairs().items(),
                                         key=lambda kv: (-len(set(kv[1])), tuple(sorted(kv[0])))):
             a, b = sorted(pair)
@@ -2117,11 +2117,11 @@ class TmdlModel:
                     # name), but `_append_calc_column` is NOT -- it unconditionally appends fresh
                     # TMDL lines. A table with 2+ blend partners that all share this exact
                     # `shared` column set (e.g. X blends with both Y and Z on the same
-                    # Country+Issuer pair) reaches this loop once per partner, so without this
+                    # Country+Group pair) reaches this loop once per partner, so without this
                     # guard `t`'s composite key gets written into its own TMDL TWICE under the
                     # identical name -- Desktop's own "collide -- the exact same name appears
-                    # twice" load failure. One real corpus workbook (AP Product Portfolio
-                    # Management Dashboard) hits exactly this shape.
+                    # twice" load failure. One real corpus workbook (WorkbookG
+                    # ) hits exactly this shape.
                     if (t, name) in self.na.emitted:
                         continue
                     expr = " & \"|\" & ".join(dax_ref(t, c) for c in shared)
@@ -2187,18 +2187,18 @@ if __name__ == "__main__":
     assert not any(" " in ln[:len(ln) - len(ln.lstrip())] for ln in nested), "spaces in indent"
     assert _line(3, "x") == "\t\t\tx"
     assert m_ident("Region") == "Region"
-    assert m_ident("Billable BID") == '#"Billable BID"', m_ident("Billable BID")
+    assert m_ident("Flag BID") == '#"Flag BID"', m_ident("Flag BID")
     assert m_ident('od"d') == '#"od""d"'
     assert lineage("table", "A") == lineage("table", "A"), "lineageTag is not stable"
     assert lineage("table", "A") != lineage("table", "B")
 
     # route(): RANK/RANK_DENSE with a resolved "Restart every" partition go to D+, but ONLY when
-    # that field is a real column on the calc's OWN table -- ground truth: NGPO Dashboard New -
-    # AP Version (MSC)'s `Rank - Topic Area`. Every other table calc, and RANK_UNIQUE/
+    # that field is a real column on the calc's OWN table -- ground truth: WorkbookC
+    # 's `Rank - Group Area`. Every other table calc, and RANK_UNIQUE/
     # RANK_MODIFIED/RANK_PERCENTILE even with the SAME resolved partition, still route to H.
     _rank_calc = {"kind": "tablecalc", "formula": "RANK(SUM([x]), 'desc')",
-                  "tc_spec": {"ordering_type": "Field", "level_break_field": "Topic Area"}}
-    assert route(_rank_calc, {"Topic Area", "Other Col"}) == "D+", (
+                  "tc_spec": {"ordering_type": "Field", "level_break_field": "Group Area"}}
+    assert route(_rank_calc, {"Group Area", "Other Col"}) == "D+", (
         "RANK with a resolved same-table partition must route to D+")
     assert route(_rank_calc, {"Other Col"}) == "H", (
         "RANK's own level_break_field must be a real column on THIS table, not just resolved to "
@@ -2208,18 +2208,18 @@ if __name__ == "__main__":
         "the OLD, conservative answer when no caller passes table_columns at all -- never a "
         "wrong D+ just because a caller (e.g. a stats-only check) did not wire this through")
     _generic_tc = {"kind": "tablecalc", "formula": "INDEX()", "tc_spec": None}
-    assert route(_generic_tc, {"Topic Area"}) == "H", (
+    assert route(_generic_tc, {"Group Area"}) == "H", (
         "a table calc with no tc_spec at all is unaffected by this fix")
     _rank_no_field_addressing = {
         "kind": "tablecalc", "formula": "RANK(SUM([x]), 'desc')",
         "tc_spec": {"ordering_type": "Rows", "level_break_field": None}}
-    assert route(_rank_no_field_addressing, {"Topic Area"}) == "H", (
+    assert route(_rank_no_field_addressing, {"Group Area"}) == "H", (
         "the generic 'Rows' default (Tableau's own Table-Down addressing, genuinely no "
         "partition) must still decline -- this is the common case across the real corpus")
     for fn in ("RANK_UNIQUE", "RANK_MODIFIED", "RANK_PERCENTILE"):
         _other_rank = {"kind": "tablecalc", "formula": f"{fn}([x])",
-                        "tc_spec": {"ordering_type": "Field", "level_break_field": "Topic Area"}}
-        assert route(_other_rank, {"Topic Area"}) == "H", (
+                        "tc_spec": {"ordering_type": "Field", "level_break_field": "Group Area"}}
+        assert route(_other_rank, {"Group Area"}) == "H", (
             f"{fn} must stay on tier H even with a resolved partition -- no exact DAX tie-break "
             f"equivalent (see route()'s own docstring)")
     print("tmdl.py self-test OK (route(): RANK/RANK_DENSE with a resolved same-table partition "
@@ -2269,7 +2269,7 @@ if __name__ == "__main__":
     # A parameter reference is the SAME hazard: resolve_param always points at the parameter's
     # SELECTEDVALUE measure, so a calc referencing [Parameters].[X] must become a measure too, even
     # with no aggregate function in sight. Missing this shipped a real workbook (WorkbookB Dashboard)
-    # with 'cl.Is Selected Slice By?' as a calculated COLUMN whose DAX referenced a parameter's
+    # with 'cl.Is Selected Selector?' as a calculated COLUMN whose DAX referenced a parameter's
     # measure -- the model loaded, but every report filter on that column failed in Desktop with
     # "Broken_Filters" (confirmed by elimination: every other filter in that report targets a plain
     # source column and loaded fine).
@@ -2329,7 +2329,7 @@ if __name__ == "__main__":
     # Promoting a calc to a measure fixes the column-references-measure hazard above, but a pure
     # branch-selection formula (no aggregate function of its own) has bare column references that
     # relied on a calculated COLUMN's implicit row context -- a measure has none. Confirmed on a
-    # real workbook (WorkbookB Dashboard, 'cl.Slice By'): promoting it was necessary but surfaced a
+    # real workbook (WorkbookB Dashboard, 'cl.Selector'): promoting it was necessary but surfaced a
     # SECOND real Desktop error, "A single value for column '...' cannot be determined... This can
     # happen when a measure or function formula refers to a column that contains many values
     # without specifying an aggregation" (Underlying Error: Missing_References). `resolve_measure_safe`
@@ -2359,19 +2359,19 @@ if __name__ == "__main__":
     # `_shelf_agg_only`: a calc promoted to a measure PURELY by a parameter reference (no
     # aggregate of its own) but used EXCLUSIVELY via `SUM(<calc>)` on its own worksheet shelf
     # must be SUMX-inlined, not SELECTEDVALUE-wrapped -- SELECTEDVALUE returns BLANK the instant
-    # more than one real row exists, exactly the WorkbookA "Card Penetration" bug (see that method's
+    # more than one real row exists, exactly the WorkbookA "Share Metric" bug (see that method's
     # own docstring for the full real-corpus story).
     shelf_t = {
         "tableau_name": "ShelfT", "caption": "ShelfT", "provenance": "test",
         "columns": [{"name": "val", "tableau_name": "[val]", "datatype": "real",
                      "role": "dimension", "source_column": "val", "hidden": False}],
-        "calcs": [{"name": "Penetration", "tableau_name": "[Penetration]", "datatype": "real",
+        "calcs": [{"name": "Share", "tableau_name": "[Share]", "datatype": "real",
                    "kind": "formula", "formula": "[val] / [Parameters].[Denom]"}],
         "groups": [], "bins": [], "aliases": {},
     }
     shelf_ir = {"tables": [shelf_t],
                 "worksheets": [{"name": "w", "encodings": [
-                    {"channel": "text", "field": "Penetration", "agg": "sum",
+                    {"channel": "text", "field": "Share", "agg": "sum",
                      "table_calc": None}]}],
                 "parameters": [{"name": "Denom", "tableau_name": "[Denom]", "aliases": []}]}
     na3 = NameAuthority()
@@ -2380,7 +2380,7 @@ if __name__ == "__main__":
     m3.allocate()
     m3.resolve_calcs()
     pbi_shelf = m3.table_order[0][0]
-    got_shelf = m3.calc_dax[(pbi_shelf, "Penetration")]
+    got_shelf = m3.calc_dax[(pbi_shelf, "Share")]
     want_shelf = f"SUMX('{pbi_shelf}', DIVIDE('{pbi_shelf}'[val], [Denom Selected]))"
     assert got_shelf == want_shelf, f"got {got_shelf!r}, want {want_shelf!r}"
     print(f"  OK  a parameter-promoted measure used only via a SUM() shelf encoding is "
@@ -2391,7 +2391,7 @@ if __name__ == "__main__":
     # must not fire just because a calc happens to be promoted to a measure.
     shelf_ir_dim = {"tables": [shelf_t],
                     "worksheets": [{"name": "w", "encodings": [
-                        {"channel": "rows", "field": "Penetration", "agg": None,
+                        {"channel": "rows", "field": "Share", "agg": None,
                          "table_calc": None}]}],
                     "parameters": [{"name": "Denom", "tableau_name": "[Denom]", "aliases": []}]}
     na3b = NameAuthority()
@@ -2400,7 +2400,7 @@ if __name__ == "__main__":
     m3b.allocate()
     m3b.resolve_calcs()
     pbi_shelf_b = m3b.table_order[0][0]
-    got_dim = m3b.calc_dax[(pbi_shelf_b, "Penetration")]
+    got_dim = m3b.calc_dax[(pbi_shelf_b, "Share")]
     assert "SELECTEDVALUE" in got_dim, (
         f"a calc used as a plain dimension reference must keep the SELECTEDVALUE-wrap, no "
         f"regression -- got {got_dim!r}")
@@ -2481,7 +2481,7 @@ if __name__ == "__main__":
     assert "C" not in cyc, "an acyclic calc was wrongly flagged as circular"
     assert "D" in cyc, "a self-referencing calc was not detected as a cycle"
 
-    # Regression for the VRM Compliance Dashboard bug: two DIFFERENT source tables (different
+    # Regression for the WB Sample Dashboard bug: two DIFFERENT source tables (different
     # provenance, different connections -- here two different .hyper extracts) that both carry
     # tableau_name=None and the SAME generic caption "Data" must never be silently collapsed onto
     # one pbi table. Before the fix, `NameAuthority.table()`'s `if key in self.tables: return
@@ -2491,14 +2491,14 @@ if __name__ == "__main__":
     # measure and residue entry in it) vanished with no error and no residue entry at all.
     # `_assert_no_table_collision()` must catch this pre-emit, before either table reaches disk.
     collide_ir = {"tables": [
-        {"tableau_name": None, "caption": "Data", "provenance": "tds:MSD_Billing_Details.tdsx",
-         "connections": [{"class": "hyper", "dbname": "Data/Extracts/MSD_Billing_Details.hyper",
+        {"tableau_name": None, "caption": "Data", "provenance": "tds:SRC_Details_A.tdsx",
+         "connections": [{"class": "hyper", "dbname": "Data/Extracts/SRC_Details_A.hyper",
                           "is_proxy": False, "is_engine": True}],
          "columns": [], "calcs": [], "groups": [], "bins": [], "aliases": {}},
         {"tableau_name": None, "caption": "Data",
-         "provenance": "tds:MSD_Case_Details_Compliance.tdsx",
+         "provenance": "tds:SRC_Details_B.tdsx",
          "connections": [{"class": "hyper",
-                          "dbname": "Data/Extracts/MSD_Case_Details_Compliance.hyper",
+                          "dbname": "Data/Extracts/SRC_Details_B.hyper",
                           "is_proxy": False, "is_engine": True}],
          "columns": [], "calcs": [], "groups": [], "bins": [], "aliases": {}},
     ], "worksheets": [], "parameters": []}
@@ -2513,7 +2513,7 @@ if __name__ == "__main__":
             "two DIFFERENT source tables sharing tableau_name=None/caption='Data' must raise a "
             "table allocation collision -- allocate() silently let them merge")
 
-    # Regression for the NGPO Dashboard New - AP Version (MSC) InvalidUnconstrainedJoin bug --
+    # Regression for the WorkbookC InvalidUnconstrainedJoin bug --
     # `_relationships`' blend-key detection, corpus-agnostic (nothing below names any real
     # workbook table). Four tables, no <object-graph>/physical join at all (a real Tableau data
     # blend has none):
@@ -2582,7 +2582,7 @@ if __name__ == "__main__":
     print(f"  OK   blend relationship detection: 2 edges emitted ({sorted(edges)}), Fact<->Dim2 "
           f"declined (no shared column), Fact<->Dim3 declined (would close a cycle)")
 
-    # Regression for the "Digital Sales - Leads Dashboard" missing-relationship Desktop bug --
+    # Regression for the "WorkbookH" missing-relationship Desktop bug --
     # real KEY-BASED joins (resolved_joins), not a blend. "Global" is a MULTI-SPOKE hub (two
     # different many-side tables, "Meetings" and "Opportunity", both join to it) and must get
     # `crossFilteringBehavior: bothDirections` on both its relationships -- a flat table combining
@@ -2668,9 +2668,9 @@ if __name__ == "__main__":
           "GroundTruth example, omitted -> no regression")
 
     # _plan_shelf_measures: FIXED LOD column -- SUM()/AVERAGE() must become MAX(), not
-    # multiply the per-group value by (rows per group).  Regression: Usage Deepdive's
-    # `issr-spend-l6 (copy)` column was CALCULATE(SUM(...), ALLEXCEPT(...)), so the
-    # `SUM of issr-spend-l6 (copy)` shelf measure re-summed a group total across every row
+    # multiply the per-group value by (rows per group).  Regression: Detail Page's
+    # `grp-metric-l6 (copy)` column was CALCULATE(SUM(...), ALLEXCEPT(...)), so the
+    # `SUM of grp-metric-l6 (copy)` shelf measure re-summed a group total across every row
     # that shared the same key, inflating the result by the number of rows per group.
     lod_tbl = {
         "tableau_name": "Deepdive", "caption": "Deepdive", "provenance": "test",
@@ -2718,10 +2718,10 @@ if __name__ == "__main__":
           "per-group column); plain column SUM unaffected")
 
     # _plan_shelf_measures: same column caption in MULTIPLE tables must each get their own
-    # shelf measure -- not just the first-match winner. Real failure: `Issr Actv Crd Cy` exists
-    # as a plain column in both `Key Highlights` and `Usage Overview`; the old single-match
-    # `by_spelling` call allocated `SUM of Issr Actv Crd Cy` only under Key Highlights, leaving
-    # Usage Overview with no shelf measure; `_resolve_field` found only the raw column there and
+    # shelf measure -- not just the first-match winner. Real failure: `Metric Cy` exists
+    # as a plain column in both `Highlights Page` and `Overview Page`; the old single-match
+    # `by_spelling` call allocated `SUM of Metric Cy` only under Highlights Page, leaving
+    # Overview Page with no shelf measure; `_resolve_field` found only the raw column there and
     # routed it to Category instead of Y, breaking the lineChart's second data series.
     def _shared_col_tbl(name, col_name):
         return {"tableau_name": name, "caption": name, "provenance": "test",
