@@ -1,0 +1,14 @@
+# Third-party packages used by the scripts under reconstructed-tableau-powerbi-pipeline/
+# (found from their imports; versions are the ones the pipeline was verified with in this repo's
+# smoke test, used here as minimums).
+#
+# Python 3.9 or newer.
+
+openpyxl>=3.1            # Excel files for generated data and mapping reports
+python-docx>=1.1         # effort report .docx rendering
+jsonschema>=4.20         # Power BI schema validation (validate-pbip-compliance --schemas)
+referencing>=0.30        # schema $ref resolution used with jsonschema
+PyYAML>=6.0              # agent configuration files
+
+# Only needed for Agent 3 (realistic data from the workbook's .hyper extract) and --realistic:
+tableauhyperapi>=0.0.19000

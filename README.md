@@ -685,9 +685,14 @@ The `.claude/skills/` folder also contains `validate-blend-key-domains`; the age
 - **Large and `.hyper` data.** Agent 3 samples the embedded `.hyper` extract; `tools/data-prep/hyper_to_csv.py` converts a `.hyper` file to CSV via the Tableau Hyper API.
 - **Data wiring replaces stub partitions.** Without data generation, the output opens against its own Power BI connection. Agents 2 and 3 replace the empty stub partitions with an Excel file of synthetic or sampled data; they do not re-point the model at the original source systems (decision 4).
 
-### 25.4 Prerequisites not included in the archive
+### 25.4 Prerequisites
 
-The snapshot covers only `tools/` and `.claude/skills/`. It contains **no dependency manifest or environment configuration**. From the imports in the restored scripts, third-party packages in use include `openpyxl`, `python-docx`, `jsonschema`, `referencing`, `PyYAML` and `tableauhyperapi`. The scripts are documented as run with `python3`; the original archive's compiled caches showed they had been run under Python 3.9 and 3.14 (the caches are no longer in the repository). Exact versions and the remaining setup must be supplied separately. The archive does not claim any of this is installed or verified; running the pipeline has not been done in this repository.
+The original archive covered only `tools/` and `.claude/skills/` and had no dependency manifest or environment configuration. This repository adds, outside those two roots:
+
+- `requirements.txt`: the third-party packages the scripts import (`openpyxl`, `python-docx`, `jsonschema`, `referencing`, `PyYAML`, and `tableauhyperapi` for the realistic-data path). Python 3.9 or newer; the smoke test below was run on Python 3.13.
+- `scripts/smoke_test.sh`: an end-to-end check, described in [section 25.6](#256-running-the-pipeline).
+
+Still needed from outside the repository: Power BI Desktop to open and inspect the generated projects, and network access for the optional Power BI schema check (the schemas are fetched from Microsoft and cached in the system temp folder).
 
 ### 25.5 Where this README and the pipeline differ
 
@@ -707,6 +712,38 @@ These are recorded, not resolved:
 | Python version | 3.11+ (section 18) | Run under 3.9 and 3.14 per the original archive's compiled caches |
 
 The restored documents also contradict each other in places (for example the "Three-Agent Architecture" document versus the five-agent pipeline, and skills one document calls removed but others still describe). They are preserved as restored.
+
+### 25.6 Running the pipeline
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+scripts/smoke_test.sh            # about 10 seconds, no network needed
+```
+
+The smoke test checks the packages, runs every script's built-in self-test, and runs the whole pipeline (Agent 1, then Agent 2, then Agent 5, then Agent 4) on the bundled test workbook, checking that each stage wrote its files. It exits non-zero on any failure.
+
+To convert your own workbook (run from `reconstructed-tableau-powerbi-pipeline/`):
+
+```bash
+# Without data generation: the project keeps its own Power BI connection
+python3 tools/agents/implementation/orchestrator/basic_pipeline_orchestrator.py <input.twbx> -o <out> --all-agents
+
+# With data: Agent 2 (synthetic) always runs; add --agent3 for realistic data sampled from the workbook's .hyper extract
+python3 tools/agents/implementation/orchestrator/dummy_data_pipeline_orchestrator.py <input.twbx> -o <out> --agent5 --agent4
+```
+
+Then open the `.pbip` in Power BI Desktop and work through `COPILOT_FIX_PROMPTS_MANDATORY.md` and `_OPTIONAL.md` by hand (there is no automated apply step). Optional schema lint of a generated project: `cd tools && PYTHONPATH=. python3 pbip_rules/lint.py <project> --schemas`. The `PYTHONPATH=.` is needed; the command as written in the agent documentation (without it) fails with `ModuleNotFoundError` in the original files too.
+
+**What was verified in this repository:** the smoke test passes (13 self-tests, 12 pass and 1 is skipped as described below; both orchestrators complete and write their outputs). Agent 3 was also run against a hand-built `.twbx` containing a small `.hyper` file: it extracted the profile and generated data, and its validation step warned for the same reason as below. A generated project has not been opened in Power BI Desktop here.
+
+**What to expect from the bundled workbook:** `Synthetic Coverage Probe.twb` is a test fixture that deliberately uses features Power BI has no equivalent for (for example a Gantt chart), so Agent 1 and Agent 4 report it as FAILED, about 63/100 without data and 53/100 with generated data. That is the pipeline working as designed, and it is the same result as the original files. A realistic quality score needs a real workbook.
+
+**Known gaps** (nothing in the pipeline's main path depends on them):
+
+- The `docs/` folder that the skills link to is not in the archive (`reference-corpus.md`, `schema-reference/*.md`, `translation-architecture-plan.md`, and the Desktop-authored example `docs/examples/GroundTruth.pbip`). Those links are dead. The missing example makes two self-checks unable to run fully: `validate_dummy_data.py` (its self-test is skipped by the smoke test) and `build-tableau-pbip/tests/check_against_ground_truth.py`.
+- `tools/data-prep/hyper_to_csv.py` does not work with the current `tableauhyperapi` (it imports `SqlQueryContext`, which that package no longer provides, and then wrongly reports the package as not installed). The pipeline itself does not use this helper.
+- The three experimental extension agents and the retired Agent 6 are not exercised by the smoke test beyond their self-tests.
 
 ---
 
