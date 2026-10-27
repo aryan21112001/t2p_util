@@ -1,6 +1,6 @@
 # t2p_util — Tableau → Power BI Migration Accelerator
 
-> **Status: planned / pre-alpha.** This repository currently contains the design and roadmap for the accelerator. Nothing described below is implemented yet. Command-line examples show the *planned* interface and will change as the code lands.
+> **Status: design plus an existing pipeline.** This repository contains the design and roadmap for the accelerator (sections 1–24), and a restored, byte-verified snapshot of an existing agents-and-skills pipeline that converts Tableau workbooks to Power BI projects. That pipeline is **used as-is** and is described in [section 25](#25-existing-agents-and-skills-pipeline-used-as-is). The `t2p` command-line examples and the `src/t2p/` layout in this README show the *planned* interface and are not implemented; they will change as the code lands.
 
 `t2p_util` is an accelerator for migrating Tableau content to Power BI. It reads Tableau workbooks (`.twb` / `.twbx`) and Tableau Server / Cloud, assesses what you have, and generates a **Power BI Project (PBIP)** containing a TMDL semantic model and a report definition. Alongside the PBIP it emits a vendor-neutral **Apache Ossie** semantic model file for each Tableau data source, and a **correct DAX translation of every calculation it can translate**, with the rest flagged for human review.
 
@@ -34,8 +34,9 @@ It is built to be rules-first and auditable. Deterministic translation handles w
 22. [Large packaged workbooks and version support](#22-large-packaged-workbooks-and-version-support)
 23. [Theme and branding assistant](#23-theme-and-branding-assistant)
 24. [Row-level security handling](#24-row-level-security-handling)
-25. [Contributing and license](#25-contributing-and-license)
-26. [References](#26-references)
+25. [Existing agents and skills pipeline (used as-is)](#25-existing-agents-and-skills-pipeline-used-as-is)
+26. [Contributing and license](#26-contributing-and-license)
+27. [References](#27-references)
 
 ---
 
@@ -486,6 +487,8 @@ Configuration is a YAML file plus environment variables. Secrets are only ever r
 
 ## 17. Planned repository layout
 
+> The existing pipeline snapshot sits beside this planned layout at `reconstructed-tableau-powerbi-pipeline/` (`tools/` and `.claude/skills/`; see [section 25](#25-existing-agents-and-skills-pipeline-used-as-is)). The tree below is the planned `src/t2p/` package and does not exist yet.
+
 ```
 t2p_util/
 ├── README.md
@@ -514,7 +517,7 @@ t2p_util/
 
 ## 18. Prerequisites
 
-Planned requirements (to be confirmed as implementation proceeds):
+Planned requirements (to be confirmed as implementation proceeds). The existing pipeline snapshot has its own additional needs, listed in [section 25.4](#254-prerequisites-not-included-in-the-archive).
 
 - Python 3.11+
 - Power BI Desktop (to open and inspect generated PBIP projects)
@@ -540,6 +543,8 @@ Planned requirements (to be confirmed as implementation proceeds):
 ---
 
 ## 20. Roadmap
+
+> The existing pipeline already covers much of what phases 0–3 and 6 describe (parsing, calculation and model translation, report generation) and part of phase 8 (validation). Because it is used as-is, the phases below are to be re-scoped against it; see [section 21](#21-decisions-log-and-open-questions) (open item 1) and [section 25.5](#255-where-this-readme-and-the-pipeline-differ).
 
 | Phase | Deliverable |
 |---|---|
@@ -568,6 +573,7 @@ Planned requirements (to be confirmed as implementation proceeds):
 | 3 | Power BI / Fabric workspace and service principal | Will be provided and managed. Testing happens on a separate environment and machine that will have everything in place. Until then, only offline checks run (TMDL/DAX syntax, Ossie schema); data and visual parity are enabled once access exists |
 | 9 | Hardware limits | Not a concern: the target machine will have enough disk and memory. The disk pre-check and streaming design stay as safeguards |
 | 10 | Packaged data type | Packaged data in the large workbooks is **mostly `.hyper` extracts**; the `.hyper` to Parquet path is the primary data route |
+| 11 | Existing agents and skills | The archived agents-and-skills pipeline is **used as-is: nothing in it is changed or added to**. It is restored byte-for-byte under `reconstructed-tableau-powerbi-pipeline/`; see [section 25](#25-existing-agents-and-skills-pipeline-used-as-is) |
 | 4 | Output location | Each run creates a **new output folder with a defined structure** ([section 5](#5-outputs)). Reports **connect to the original source systems** (confirmed); data that exists only inside a `.twbx` is extracted into the output folder |
 | 5 | Row-level security | **Full access:** all users see all rows, so no RLS roles are generated. The tool still detects user filters / `USERNAME()`-style logic and warns if any is found; see [section 24](#24-row-level-security-handling) |
 | 6 | LLM data policy | No restriction on formulas and metadata. All extracted content is stored as **definite YAML files** that the LLM tooling reads and writes. Row-level data is never sent |
@@ -576,7 +582,8 @@ Planned requirements (to be confirmed as implementation proceeds):
 
 ### Still open
 
-1. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly? Until answered, the theme assistant proposes options and the user picks.
+1. **Planned design vs. the existing pipeline.** The existing pipeline is used as-is, so the parts of this README that overlap with it (parser and IR, calculation translation, model and visual emitters, validation) are served by it. Which of the remaining planned parts are built around it, and which are dropped, is not decided: the YAML-based IR and the `out/<client>/<workbook>/` layout (section 5), assessment reporting (section 12), the Apache Ossie export (section 10), the theme assistant (section 23), Tableau Server / Cloud ingest (section 4.2), and the LLM fallback (section 11), which the existing agents deliberately do not have. See [section 25.5](#255-where-this-readme-and-the-pipeline-differ).
+2. **Brand usage:** for client themes, who approves a final palette, and are there client brand guidelines to supply directly? Until answered, the theme assistant proposes options and the user picks.
 
 ---
 
@@ -637,7 +644,73 @@ If a future engagement needs RLS, candidate roles can be generated as `needs-rev
 
 ---
 
-## 25. Contributing and license
+## 25. Existing agents and skills pipeline (used as-is)
+
+### 25.1 What it is and where it is
+
+`reconstructed-tableau-powerbi-pipeline/` holds an existing pipeline of five numbered agents and a set of skills that convert one Tableau workbook (`.twbx` / `.twb`) into a Power BI project (`.pbip`). It was restored byte-for-byte from the archive `ALL_AGENTS_AND_PIPELINE.md`: **147 files** (86 text, 61 binary) under exactly two roots, `tools/` and `.claude/skills/`. Every file was checked against its archived byte length and SHA-256; see `reconstructed-tableau-powerbi-pipeline/RECONSTRUCTION_REPORT.md`.
+
+**It is used as-is. Nothing in it is changed or added to.** That includes its documentation, its contradictions and stale statements, and its `__pycache__` files. Changes to behaviour belong in code outside the snapshot or in a later, explicit decision.
+
+### 25.2 Pipeline order
+
+```
+Agent 1 conversion → Agent 2 synthetic data OR Agent 3 realistic data → Agent 5 Copilot prompts → Agent 4 validation
+```
+
+| Agent | Folder (under `tools/agents/implementation/`) | Skills it uses | Role |
+|---|---|---|---|
+| 1 Converter | `agent-1-converter/` | `extract-twbx-contents`, `build-tableau-pbip`, `validate-tableau-pbip-mapping`, `validate-pbip-compliance` | `.twbx` / `.twb` → `.pbip`, plus `COVERAGE.md`, `RESIDUE.md` and `_work/*.json` |
+| 2 Dummy data | `agent-2-dummy-data/` | `generate-dummy-data` | Synthetic data wired into Agent 1's folder, in place |
+| 3 Realistic data | `agent-3-realistic-data/` | `generate-dummy-data` (realistic mode), `validate-dummy-data` | Samples values from the workbook's embedded `.hyper` extract; needs a workbook that contains data |
+| 5 Copilot prompts | `agent-5-copilot-prompts/` | `generate-copilot-fix-prompts` | Mandatory and optional fix-prompt documents for what could not be translated |
+| 4 Validator | `agent-4-validator/` | `validate-tableau-pbip-mapping`, `validate-pbip-compliance`, `validate-dummy-data`, `generate-copilot-fix-prompts` (`effort_report.py`) | 0–100 score, `VALIDATION_SUMMARY.json`, effort reports |
+
+Orchestrators in `orchestrator/` run the sequence: `basic_pipeline_orchestrator.py` (no data generation) and `dummy_data_pipeline_orchestrator.py` / `realistic_data_pipeline_orchestrator.py` (with data). The agent and orchestrator documentation is in `tools/agents/README_AGENTS.md`, `tools/agents/MASTER_PROMPTS.md` and `tools/agents/docs/`.
+
+Not part of the numbered pipeline:
+
+- **Experimental extension agents** (`agent-extend-tablecalc-rank`, `agent-extend-tablecalc-quickcalcs`, `agent-extend-dax-measures`): invoked directly, one workbook at a time, writing a new copy of the project.
+- **Agent 6, Apply Fixes** (`_retired_agent-6-apply-fixes/`): retired, kept for reference only.
+- **`agent-extend-aryan/`**: documentation-only gotcha files, not runnable.
+
+The `.claude/skills/` folder also contains `validate-blend-key-domains`; the agent documentation does not list it among any agent's skills. `tools/` also holds `pbip_rules/` (the rule linter), `data-prep/hyper_to_csv.py`, `materialize_parameter_domains.py` and `sme_fix_script.py`.
+
+### 25.3 Properties that matter for this project
+
+- **Deterministic, with no LLM inside any agent.** Agents are thin wrappers that run skill scripts and aggregate their output. The documentation places judgment in three places outside the agents (reading a screenshot to pick a visual type, hand-writing DAX for a declined calculation, deciding what a free-entry parameter becomes).
+- **Fails closed.** Anything not cleanly convertible is declined with a reason and listed in `RESIDUE.md`, not approximated.
+- **No automated write-back.** Fixes for declined items are applied by a person (or Copilot in Power BI Desktop) using Agent 5's prompts.
+- **Structured record is JSON.** Agent 1 writes `_work/ir.json`, `_work/name_authority.json` and `_work/residue.json`; later agents read them.
+- **Large and `.hyper` data.** Agent 3 samples the embedded `.hyper` extract; `tools/data-prep/hyper_to_csv.py` converts a `.hyper` file to CSV via the Tableau Hyper API.
+- **Data wiring replaces stub partitions.** Without data generation, the output opens against its own Power BI connection. Agents 2 and 3 replace the empty stub partitions with an Excel file of synthetic or sampled data; they do not re-point the model at the original source systems (decision 4).
+
+### 25.4 Prerequisites not included in the archive
+
+The archive covers only `tools/` and `.claude/skills/`. It contains **no dependency manifest or environment configuration**. From the imports in the restored scripts, third-party packages in use include `openpyxl`, `python-docx`, `jsonschema`, `referencing`, `PyYAML` and `tableauhyperapi`. The scripts are documented as run with `python3`; the archived `.pyc` files were built with Python 3.9 and 3.14. Exact versions and the remaining setup must be supplied separately. The archive does not claim any of this is installed or verified; running the pipeline has not been done in this repository.
+
+### 25.5 Where this README and the pipeline differ
+
+These are recorded, not resolved:
+
+| Topic | This README (planned design) | Existing pipeline |
+|---|---|---|
+| Intermediate representation | Typed IR stored as YAML (section 5) | JSON files in `_work/` |
+| Output layout | `out/<client>/<workbook>/` with numbered folders (section 5) | One PBIP folder per workbook, plus `COVERAGE.md`, `RESIDUE.md`, `validation/` and the effort reports |
+| LLM | Claude fallback for the long tail, always flagged (section 11) | No LLM in any agent; unresolved items go to Copilot prompts for a human |
+| Source connections | Original source systems (decision 4) | Agents 2 and 3 wire in generated or sampled data in an Excel file |
+| Apache Ossie export | Planned (section 10) | No Ossie export found in the archive |
+| Theme assistant | Planned (section 23) | No client-driven theme research found in the archive |
+| Tableau Server / Cloud ingest | Planned (section 4.2) | Not found in the archive; inputs are local `.twbx` / `.twb` |
+| Row-level security | Detect and warn (section 24) | Not checked in this pass |
+| Interface | `t2p` CLI (section 15) | Per-agent and per-orchestrator `python3` commands |
+| Python version | 3.11+ (section 18) | Built with 3.9 and 3.14 per the archived `.pyc` files |
+
+The archived documents also contradict each other in places (for example the "Three-Agent Architecture" document versus the five-agent pipeline, and skills one document calls removed but others still describe). They are preserved unchanged.
+
+---
+
+## 26. Contributing and license
 
 The project is at the design stage. Issues and proposals are welcome. A license has not yet been chosen; one will be added before the first release.
 
@@ -645,7 +718,7 @@ Contributor guidelines (test requirements for every new mapping rule, fixture po
 
 ---
 
-## 26. References
+## 27. References
 
 - Apache Ossie (formerly Open Semantic Interchange): <https://ossie.apache.org/> and <https://github.com/apache/ossie> (spec in `core-spec/`)
 - Power BI Projects (PBIP), TMDL and the enhanced report format (PBIR): <https://learn.microsoft.com/en-us/power-bi/developer/embedded/projects-enhanced-report-format>
