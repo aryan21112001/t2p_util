@@ -130,8 +130,8 @@ def load_ir_full_index(wb_dir):
       calc_id_by_name: {PBI display name -> bare tableau id}     (reverse lookup)
       real_col_ids:    {bare tableau id -> PBI display name} for REAL (never-calculated) columns
                        -- a terminal leaf in any dependency chain. A real column's Tableau
-                       identity (e.g. `approved_auth_transaction_count`) is ALSO not the model
-                       name (`Approved Auth Transaction Count`) -- same caption-vs-internal-name
+                       identity (e.g. `approved_item_count`) is ALSO not the model
+                       name (`Approved Item Count`) -- same caption-vs-internal-name
                        split as a calc, just less visually obvious because it's usually only a
                        case/spacing difference. Kept as `{id: name}` rather than a bare set so
                        `resolve_formula_display` can substitute it too; every existing `in`
@@ -184,7 +184,7 @@ def lookup_param(pid, param_by_id):
     `param_by_id.get(pid)` alone conflates two genuinely different situations under the same
     `None`: an id this workbook recorded MULTIPLE conflicting values for (real ambiguity -- never
     guess which one a formula meant), and an id that was never recorded as its own entry AT ALL.
-    Found on a real corpus workbook (Prevent Dashboard): `[Parameters].[Parameter 9 1]` was
+    Found on a real corpus workbook (WorkbookB Dashboard): `[Parameters].[Parameter 9 1]` was
     reported "AMBIGUOUS, multiple saved values recorded" when `ir.json` in fact has ZERO entries
     under that exact id -- the message was simply wrong about WHY it could not be resolved.
 
@@ -223,7 +223,7 @@ def compute_agg_map_by_name(calc_by_id):
     actually emit.
 
     A calc's own declared `role` field decides NOTHING here -- confirmed the hard way on this
-    exact corpus workbook (Prevent Dashboard): tmdl.py's own docstring records a real failure
+    exact corpus workbook (WorkbookB Dashboard): tmdl.py's own docstring records a real failure
     where a field got emitted as a calculated COLUMN whose DAX referenced a parameter's MEASURE;
     the model loaded fine (no preflight check catches the unqualified `[Name]` shape a parameter
     reference uses), but every report filter built on that column then failed in Desktop with
@@ -252,7 +252,7 @@ def compute_agg_map_by_name(calc_by_id):
 # The bare (unquoted) alternative is `\S+`, not `[A-Za-z_][A-Za-z0-9_]*` -- build-tableau-pbip's
 # own quoting rule (names.py's `_NEEDS_QUOTE = re.compile(r"[.=:'\s]")`) only quotes a name
 # containing `. = : '` or whitespace; a bare measure/column name is free to contain `%`, `-`, `#`,
-# etc. Real corpus regression: `Dormancy_%_of_cards`/`issr-spend-l6`/`mkt-spend-l6` are genuinely
+# etc. Real corpus regression: `Status_%_of_items`/`grp-metric-l6`/`alt-metric-l6` are genuinely
 # live TMDL measures, but the old `[A-Za-z0-9_]*` alternative matched neither them nor their
 # absent quotes, so they never landed in `existing_names` -- `resolve_prereq_chain` and
 # `drop_already_emitted` both then treated a measure that already exists as still needing to be
@@ -287,7 +287,7 @@ def drop_already_emitted(wb_dir, residue):
 
     `residue.json` is a frozen record of what the ORIGINAL build declined; it is never rewritten.
     That is correct as history and actively misleading as a to-do list once anything has been
-    fixed by hand in Desktop -- on Prevent Dashboard, this document kept telling a reviewer to
+    fixed by hand in Desktop -- on WorkbookB Dashboard, this document kept telling a reviewer to
     write DAX for 17 DATETRUNC and 10 STR fields that were already live in the TMDL. This check
     keeps every to-do list this skill produces (COPILOT_FIX_PROMPTS.md, EFFORT_REPORT.md) honest
     about what is actually still outstanding, whoever applied the earlier fix and however.
@@ -344,12 +344,12 @@ def resolve_prereq_chain(subject, calc_by_id, calc_id_by_name, real_col_ids, par
     """Every field `subject`'s own Tableau formula needs -- directly or transitively -- before
     it will actually work, whether or not each one already has its own entry elsewhere in this
     document. This is the exact manual trace a 'root' cascade field's formula often forces by
-    hand: on Prevent Dashboard's real `cl.Is Current Period - Lookups?`, its own residue.json
+    hand: on WorkbookB Dashboard's real `cl.Is Active Period - Lookup?`, its own residue.json
     entry names it as an independent "root" clearing 4 downstream fields, but ITS OWN formula
-    transitively needs 4 MORE fields first (`cl.Current Period - Start/End Date`, `cl.Current
+    transitively needs 4 MORE fields first (`cl.Active Period - Start/End Date`, `cl.Current
     Month Start/End Date`) that each already have their OWN separate entry elsewhere in this
-    same document (as cascade roots in their own right) -- nothing on `cl.Is Current Period -
-    Lookups?`'s own entry said so, because an earlier version of this function only flagged
+    same document (as cascade roots in their own right) -- nothing on `cl.Is Active Period -
+    Lookup?`'s own entry said so, because an earlier version of this function only flagged
     prerequisites with NO entry anywhere in the document, silently treating "has a doc entry" as
     "already fixed." A doc entry only means declined-and-explained, not built -- this walk
     always expands a prerequisite's own references too, regardless of whether it is visible or
@@ -552,7 +552,7 @@ def structural_item_is_mandatory(item, field_to_ws):
     placement -- an unmodeled join collapsed into one flattened table (tmdl.py emits two
     wordings for this: "physical-layer join (...)" for a physical `<relation type='join'>`, and
     "key-based join (...) inside a federated datasource that is extracted as a single table" for
-    an object-graph `<relationship>` -- checked against the real Bookshop Data Analysis
+    an object-graph `<relationship>` -- checked against the real WorkbookM
     workbook, which has both) risks silently inflating every SUM/COUNT built on that table the
     moment the join turns out to be one-to-many, EVEN if Tableau declared a unique side (a known
     one-to-many join flattened alongside another one-to-many join off the same hub still
@@ -561,8 +561,8 @@ def structural_item_is_mandatory(item, field_to_ws):
     field a Tableau author could place on a shelf in the first place, so
     `field_has_report_impact` on its synthetic `subject` name almost always says "optional" no
     matter how central the flattened table actually is to the report -- exactly the mismatch this
-    override exists to correct. Real corpus workbooks with this shape (Bookshop Data Analysis, 9
-    object-graph joins; PVT Monthly Report) had every one of these join items landing in the
+    override exists to correct. Real corpus workbooks with this shape (WorkbookM, 9
+    object-graph joins; WorkbookF) had every one of these join items landing in the
     OPTIONAL file before this override, despite the fan-out risk being real and unconditional."""
     reason = (item.get("reason") or "")
     if reason.startswith("physical-layer join") or reason.startswith("key-based join"):
@@ -757,7 +757,7 @@ report page.
 something broken). Every field's own entry below tells you which of the two to pick -- read that
 line before you start, do not assume:**
 1. In the **Data** pane on the right, find the **table** named in the field's entry below (e.g.
-   `DS_Prevent Extract | Project : Data Sources`) and click it once to select it.
+   `DS_WorkbookB Extract | Project : Data Sources`) and click it once to select it.
 2. On the ribbon, go to the **Table tools** tab (or right-click the table name) and choose
    **New measure** or **New column** -- exactly as the field's own entry says.
 3. A formula bar opens at the top of the canvas. Type:
@@ -910,16 +910,16 @@ def resolve_formula_display(formula, calc_by_id, real_col_ids, param_by_id):
 
     Every formula in residue.json is Tableau's OWN raw text, unedited -- and Tableau formulas
     reference other fields by whichever spelling was current when the calc was AUTHORED: often
-    an internal id (`[Calculation_891431257683640320]`), sometimes a lowercase/snake_case source
-    column (`[approved_auth_transaction_count]`), because a calc's/column's DISPLAY name in
+    an internal id (`[Calculation_411275824779120842]`), sometimes a lowercase/snake_case source
+    column (`[approved_item_count]`), because a calc's/column's DISPLAY name in
     Tableau's UI and its own internal identity are two different strings from the moment it's
     created (see extract.py's own `tableau_name` vs `name` split). This pipeline already resolves
     that split when it EMITS a field's own DAX -- but every prior version of this document showed
-    formulas VERBATIM, so a reader who typed `SUM([Calculation_891431257683640320])` literally,
+    formulas VERBATIM, so a reader who typed `SUM([Calculation_411275824779120842])` literally,
     as directed, hit Desktop's "Column ... cannot be found" the moment they tried it: that string
     was never a real column OR measure name in the model, just an internal id that happened to
     sit inside a formula the reader was told to trust as-is. Confirmed against a real corpus
-    workbook (LAC Pedidosya Transaction Profile) reproducing exactly that error.
+    workbook (WorkbookI) reproducing exactly that error.
 
     `[Parameters].[X]` is resolved first and separately (X is a parameter id, not a field id, and
     lives in a different namespace) so a param id that coincidentally collides with a field id
@@ -980,8 +980,8 @@ def describe_table_calc(tc_spec, subject, field_to_shelf):
         a second, separate copy under `<worksheet>...<column-instance><table-calc
         ordering-field=...>`, populated whenever a calc is used inside a worksheet without sitting
         directly on a shelf -- see `extract.py`'s `worksheet_tc_addressing()`). Real corpus example
-        (Digital Sales - Leads Dashboard's `Rank - Text`): the calc's own definition is a bare
-        `ordering-type='Rows'`, but worksheet `Leads Team View` saves `ordering-field='lead_owner'`
+        (WorkbookH's `Rank - Text`): the calc's own definition is a bare
+        `ordering-type='Rows'`, but worksheet `Team View` saves `ordering-field='owner_name'`
         for it -- a real, resolved field extract.py used to have no code path to see at all.
     The fourth case (`Rows`/`Columns`/`Table`/`Pane`/`Cell`, Tableau's GENERIC table-relative
     addressing, with no field recorded anywhere above either) is only resolvable by checking which
@@ -1647,16 +1647,16 @@ def _selftest():
     table name's, so it captured everything up to the LAST quote (id + " in table '" + table
     name) as one garbled key, which then never matched anything in `ir_index` (keyed by bare id
     alone) -- silently downgrading a fixable cascade root to "not found ... check the .twb
-    directly." Found on AP Product Portfolio Management Dashboard's Roots #15/#16, both
+    directly." Found on WorkbookG's Roots #15/#16, both
     cross-table references into a Tableau-duplicated sibling datasource."""
     same_table = "depends on 'Calculation_123', which was itself declined (tier D) -- x"
     cross_table = (
-        "depends on 'Calculation_475692734733418497' in table "
-        "'tvaf_vcpp_market_landscape_apac', which was itself declined (tier D) -- x"
+        "depends on 'Calculation_451116540030822432' in table "
+        "'source_table_a', which was itself declined (tier D) -- x"
     )
     cross_table_slash = (
-        "depends on 'Issuer - PV/Txns cy (copy)_1152640081415864320' in table "
-        "'tvaf_vcpp_portfolio_view_apac_issuer', which was itself declined (tier D) -- x"
+        "depends on 'Group - PV/Txns cy (copy)_4994135919523451330' in table "
+        "'source_table_other_g', which was itself declined (tier D) -- x"
     )
     not_a_cascade = "table calculation -- addressing/partitioning is not in the formula text"
 
@@ -1665,12 +1665,12 @@ def _selftest():
 
     m = _DEP_RE.match(cross_table)
     assert m, "cross-table case must still match"
-    assert m.group(1) == "Calculation_475692734733418497", (
+    assert m.group(1) == "Calculation_451116540030822432", (
         f"cross-table id must not swallow the table qualifier, got {m.group(1)!r}"
     )
 
     m = _DEP_RE.match(cross_table_slash)
-    assert m and m.group(1) == "Issuer - PV/Txns cy (copy)_1152640081415864320", (
+    assert m and m.group(1) == "Group - PV/Txns cy (copy)_4994135919523451330", (
         f"cross-table id with slashes/parens must not swallow the table qualifier, got "
         f"{m and m.group(1)!r}"
     )
@@ -1705,8 +1705,8 @@ def _selftest_report_impact():
     assert "[MANDATORY]" in locate_field("Used Field", field_to_ws, {}, "MEASURE")
 
     # structural_item_is_mandatory: a physical-layer join is mandatory unconditionally, even
-    # with zero shelf placement -- real corpus shape (Bookshop Data Analysis, PVT Monthly
-    # Report) had every one of these landing in the OPTIONAL file before this override.
+    # with zero shelf placement -- real corpus shape (WorkbookM, WorkbookF
+    # ) had every one of these landing in the OPTIONAL file before this override.
     join_item = {"subject": "Book ~ Author", "reason": "physical-layer join (BookID=AuthID) "
                  "inside a datasource that is extracted as a SINGLE table"}
     assert structural_item_is_mandatory(join_item, {}) is True, (
@@ -1717,7 +1717,7 @@ def _selftest_report_impact():
                     "federated datasource that is extracted as a single table"}
     assert structural_item_is_mandatory(og_join_item, {}) is True, (
         "an object-graph 'key-based join' item must ALSO be mandatory even with no shelf "
-        "placement -- real corpus shape (Bookshop Data Analysis): 9 of these were missed by "
+        "placement -- real corpus shape (WorkbookM): 9 of these were missed by "
         "an earlier, narrower version of this check that only matched 'physical-layer join'"
     )
     other_item = {"subject": "Format to Title", "reason": "free-entry parameter domain"}

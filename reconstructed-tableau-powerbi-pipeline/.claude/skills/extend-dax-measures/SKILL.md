@@ -19,7 +19,7 @@ description: >
   of it into the main pipeline. Takes an existing build-tableau-pbip output (its `_work/*.json`
   already has everything needed) plus the source `.twbx` for provenance, and writes a NEW,
   separate PBIP copy with the promoted measure(s) patched in -- the original build is never
-  touched, so it stays the untouched baseline to diff against. On the real Prevent Dashboard
+  touched, so it stays the untouched baseline to diff against. On the real WorkbookB Dashboard
   corpus, the dynamic-window template is real and self-tested but promotes nothing new there --
   its 4 real residue candidates ALSO have no named addressing field recorded at all (Tableau's
   default row/pane addressing), the same dead end as the fixed-window siblings that never even

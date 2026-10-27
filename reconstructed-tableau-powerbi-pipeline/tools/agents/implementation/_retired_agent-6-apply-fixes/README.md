@@ -27,16 +27,16 @@ material. **Agent 6 applies the fixes.** Agent 4 then validates the result.
 
 ```bash
 # Apply to one project, looping to a fixpoint (auto-uses dax_overrides/<Workbook>.json if present)
-python3 apply_fixes_agent.py output/prevent_rebuild/"Prevent Dashboard"
+python3 apply_fixes_agent.py output/workbookb_rebuild/"WorkbookB Dashboard"
 
 # See what WOULD be applied, writing nothing
-python3 apply_fixes_agent.py output/prevent_rebuild/"Prevent Dashboard" --dry-run
+python3 apply_fixes_agent.py output/workbookb_rebuild/"WorkbookB Dashboard" --dry-run
 
 # Every project under a parent directory
 python3 apply_fixes_agent.py output/corpus_rebuild
 
 # Show every round
-python3 apply_fixes_agent.py output/prevent_rebuild/"Prevent Dashboard" -v
+python3 apply_fixes_agent.py output/workbookb_rebuild/"WorkbookB Dashboard" -v
 
 # A specific overrides file instead of the auto-discovered one
 python3 apply_fixes_agent.py <path> --overrides dax_overrides/custom.json
@@ -68,7 +68,7 @@ Promoting one calc can unblock others that were declined only because they depen
 skill re-attempts those cascades on each run (its resolvers read the live `emitted` set), so this
 agent calls it **repeatedly until a round promotes nothing.**
 
-Measured on the reference corpus (Prevent Dashboard, fresh build):
+Measured on the reference corpus (WorkbookB Dashboard, fresh build):
 
 | Round | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
 |---|---|---|---|---|---|---|---|---|---|---|---|

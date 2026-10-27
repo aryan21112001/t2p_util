@@ -43,8 +43,8 @@ Closes the gap between "the model loads" and "the model loads against data that 
 
 ## Why this exists
 
-A user manually validated a real generated PBIP project (LAC Pedidosya Transaction Profile,
-table `gbo_lac_monthly.pedi`, 72 columns) by pointing its stub M partition at a hand-built Excel
+A user manually validated a real generated PBIP project (WorkbookI,
+table `schema_x.table_monthly`, 72 columns) by pointing its stub M partition at a hand-built Excel
 file. That file didn't match the model's real column names/types, so it took extensive manual
 reconciliation -- renames plus 59 placeholder-null columns -- and hit one real Desktop bug along
 the way: `Excel.Workbook(File.Contents(path), true)` already promotes headers, so an extra
@@ -98,7 +98,7 @@ never silently:
 
 | Shape | Detection | Why it's skipped |
 |---|---|---|
-| **Param table** | `Table.FromRows({{...}, ...})` -- non-empty literal rows | Already carries the parameter's real, meaningful domain values (e.g. `Table.FromRows({{"Gross Data"}, {"Dedup Data"}}, type table [Value = text])`). Overwriting it would replace real data with fake data. |
+| **Param table** | `Table.FromRows({{...}, ...})` -- non-empty literal rows | Already carries the parameter's real, meaningful domain values (e.g. `Table.FromRows({{"Raw Data"}, {"Unique Data"}}, type table [Value = text])`). Overwriting it would replace real data with fake data. |
 | **Native connector** | any other `partition ... = m` body (`Excel.Workbook(...)`, `Sql.Database(...)`, ... from `--partitions native`) | Already wired to a real source. Never overwritten. |
 
 A stub whose `{}` signal is present but whose `type table [...]` ascription doesn't parse is also
@@ -140,7 +140,7 @@ byte-for-byte the fully-synthetic mode above -- this is an addition, not a repla
    heuristic, no scanning by convention -- the provenance field says exactly which archive.
 2. That archive is opened as a zip under `--realistic` (matched by the IR's own recorded
    `workbook` name -- **never** the PBIP project's sanitized folder name, which can legitimately
-   differ, e.g. `[VRM] Compliance Dashboard.twbx` vs the project folder
+   differ, e.g. `[WB] Sample Dashboard.twbx` vs the project folder
    `_VRM_ Compliance Dashboard`) or `--tds`. If the expected archive doesn't contain the exact
    member, every `.twbx`/`.tdsx` under both directories is scanned as a fallback before giving up.
 3. The matched `.hyper` member is extracted to a scratch directory from `tempfile.mkdtemp()`
@@ -181,8 +181,7 @@ source), the WHOLE table falls back to synthetic, and why is reported -- never s
 
 **Data sensitivity.** `--realistic` mode pulls real data values out of the source workbook's own
 embedded extracts -- in this pipeline's own reference corpus, that includes real
-transaction/card-processing fields (auth response codes, CVV results, card-present flags,
-merchant/BIN identifiers). **The Excel workbook and rewritten project this mode produces should
+transactional fields (response codes, flags, identifiers). **The Excel workbook and rewritten project this mode produces should
 be handled with the same data-sensitivity care as the original source Tableau workbook** -- this
 is a factual statement about what the mode does, not a hedge. `DUMMY_DATA_REPORT.md` says so
 explicitly whenever at least one column in a project was wired with real values.
@@ -205,7 +204,7 @@ in
 
 `Excel.Workbook(..., true)` already promotes the first row to headers -- the `true` argument.
 Calling `Table.PromoteHeaders` again treats the (already-correct) header row as a second
-promotion target and corrupts every column name. That is the exact bug the manual LAC Pedidosya
+promotion target and corrupts every column name. That is the exact bug the manual WorkbookI
 session hit; the generated M here never contains `Table.PromoteHeaders`, and the self-test
 asserts it. Because the Excel file's columns already match the model's names/types exactly by
 construction, no rename step and no placeholder-null column are needed here, unlike the manual
@@ -233,11 +232,11 @@ the Excel file's cell values differ between them, never the M shape.
 
 | Workbook | Tables | Wired | Skipped |
 |---|---|---|---|
-| AP Product Portfolio Management Dashboard | 25 | 6 | 19 (all Param) |
-| Caribbean - Drilldown (QBR) | 6 | 1 | 5 (all Param) |
-| LAC Pedidosya Transaction Profile | 6 | 1 | 5 (all Param) |
-| NGPO Dashboard New - AP Version (MSC) | 24 | 8 | 16 (all Param) |
-| SMB IRF Program | 3 | 2 | 1 (Param) |
+| WorkbookG | 25 | 6 | 19 (all Param) |
+| WorkbookD | 6 | 1 | 5 (all Param) |
+| WorkbookI | 6 | 1 | 5 (all Param) |
+| WorkbookC | 24 | 8 | 16 (all Param) |
+| WorkbookE | 3 | 2 | 1 (Param) |
 | _VRM_ Compliance Dashboard | 3 | 3 | 0 |
 | **Total** | **67** | **21** | **46** |
 
@@ -254,26 +253,26 @@ every sqlproxy table's sibling `.tdsx` is resolved first):
 
 | Workbook | Table | Real cols | Synthetic cols | Why any synthetic |
 |---|---|---|---|---|
-| AP Product Portfolio | all 6 tables | all columns | 0 | -- |
-| Caribbean - Drilldown (QBR) | caribbean | 47 | 13 | calculated fields (groups/bins/derived, no `source_column`) |
-| LAC Pedidosya | gbo_lac_monthly.pedi | 72 | 0 | -- |
-| NGPO (8 tables) | Level 1/3/4 tables | 9-109 each | 0-16 each | mostly calculated fields; a handful of physical columns present in Tableau's metadata but genuinely absent from the extract's own materialized schema |
-| SMB IRF Program | Data | 31 | 0 | -- |
-| SMB IRF Program | smekb.mvv_dashbord_dump | 0 | 33 | whole-table fallback -- no `hyper` connection on THIS table's own ir.json record (see caveat below) |
+| WorkbookG | all 6 tables | all columns | 0 | -- |
+| WorkbookD | tbl_d | 47 | 13 | calculated fields (groups/bins/derived, no `source_column`) |
+| WorkbookI | schema_x.table_monthly | 72 | 0 | -- |
+| WorkbookC (8 tables) | Level 1/3/4 tables | 9-109 each | 0-16 each | mostly calculated fields; a handful of physical columns present in Tableau's metadata but genuinely absent from the extract's own materialized schema |
+| WorkbookE | Data | 31 | 0 | -- |
+| WorkbookE | schema.table_dump | 0 | 33 | whole-table fallback -- no `hyper` connection on THIS table's own ir.json record (see caveat below) |
 | _VRM_ Compliance Dashboard | Data | 88 | 0 | -- |
-| _VRM_ Compliance Dashboard | MSD_Billing_Details | 0 | 73 | whole-table fallback (see caveat below) |
-| _VRM_ Compliance Dashboard | MSD_Case_Details_Compliance | 0 | 88 | whole-table fallback (see caveat below) |
+| _VRM_ Compliance Dashboard | SRC_Details_A | 0 | 73 | whole-table fallback (see caveat below) |
+| _VRM_ Compliance Dashboard | SRC_Details_B | 0 | 88 | whole-table fallback (see caveat below) |
 
 **Caveat found while building this mode (out of scope for this skill, reported honestly rather
 than hidden):** `build-tableau-pbip`'s own table-name allocation keys a table by
-`tableau_name or caption`. Both `SMB IRF Program`'s and `_VRM_ Compliance Dashboard`'s
+`tableau_name or caption`. Both `WorkbookE`'s and `_VRM_ Compliance Dashboard`'s
 sqlproxy-referenced sibling `.tdsx` files have a `<datasource>` root element with **neither** a
 `name` nor a `caption` attribute, so both fall back to the same hardcoded default label `"Data"`.
-For SMB IRF Program (one sqlproxy table, one sibling) this collides with nothing and the sibling
+For WorkbookE (one sqlproxy table, one sibling) this collides with nothing and the sibling
 resolves correctly under the display name `Data`. For _VRM_ Compliance Dashboard (TWO
 sqlproxy tables, each with its own sibling `.tdsx`, both similarly unnamed) both siblings collide
 on the SAME key, so only the SECOND one's columns survive under a single `Data` table -- the
-first sibling's real extract (`MSD_Billing_Details.hyper`) is never allocated a table at all in
+first sibling's real extract (`SRC_Details_A.hyper`) is never allocated a table at all in
 the build. This is a genuine gap in `build-tableau-pbip` itself (not this skill), discovered
 because `--realistic` mode's own honest "no hyper connection recorded for this table" reporting
 surfaced it; `generate-dummy-data` correctly falls back to synthetic for both affected tables --

@@ -46,7 +46,7 @@ an already-mapped one (`INT`, `STR`) would have silently mishandled it. **Fix:**
 call whose argument strips down to exactly the text `NULL` (case-insensitive) → `BLANK()`,
 checked at the very top of `func_call`'s dispatch — before ANY per-function special case, since
 several of those (STR, DATE) have their own earlier branch that would otherwise intercept and
-mishandle this shape first. **Status:** ✅ Fixed (found on GCLM). **Verified live**, not just
+mishandle this shape first. **Status:** ✅ Fixed (found on WorkbookA). **Verified live**, not just
 unit-tested: the real downstream formula correctly evaluates to `BLANK()` under the real
 parameter branch that selects it.
 
@@ -78,7 +78,7 @@ row count to multiply by, so even `SUM` of one is a safe identity (one case wide
 literal rule). **Fix:** `_BARE_MEASURE_REF` (`^\[[^\[\]]+\]$`, `resolve_param`'s own exact
 no-table-prefix shape — a real column reference always carries a `'Table'[...]` prefix once
 resolved, so this can't false-positive on one) extends the existing 0-tables collapse branch.
-**Status:** ✅ Fixed (found on GCLM). **Verified live**: the exact stored formula evaluates to a
+**Status:** ✅ Fixed (found on WorkbookA). **Verified live**: the exact stored formula evaluates to a
 real nonzero number (`240248.8`), not blank/error.
 
 ### `SUM`/`AVERAGE` of a Tableau-STRING-typed column, inside an explicit calc formula
@@ -94,7 +94,7 @@ differently.
 
 ### `is_aggregate()` false-positived on a bracketed field NAME containing a function-like substring
 Same shape as `extract.py`'s `classify_formula` bug (see `02-extraction-gotchas.md`) — a field
-literally named `[Card Count (copy)_...]` matched `_AGG_CALL`'s `\bCOUNT\s*\(` regex even though
+literally named `[Item Count (copy)_...]` matched `_AGG_CALL`'s `\bCOUNT\s*\(` regex even though
 "Count (" here is part of a NAME, never an invocation; a real function call is always OUTSIDE
 `[...]` brackets. **Fix:** strip bracketed field references before matching, same as the
 string-literal strip. **Status:** ✅ Fixed independently in both files (same bug, two call
@@ -107,7 +107,7 @@ unaggregated column reference. Severe: one broken calc aborts a WHOLE TABLE's Fu
 cascading through every blend-key-related table. **Fix:** strip `{...}` LOD blocks before the
 aggregate-call regex (`_STRIP_LOD`), same reasoning as the bracket-strip above — a genuinely
 SEPARATE outer aggregate (`{FIXED[k]:SUM([x])} + SUM([y])`) still correctly registers as
-aggregate. **Status:** ✅ Fixed (found on GCLM).
+aggregate. **Status:** ✅ Fixed (found on WorkbookA).
 
 ### `DATE(MIN(DATEPARSE(...)))` wrongly declined for a string-returning containing calc
 `DATE()`'s redundant-cast removal only trusted a bare field's resolved type or the CONTAINING
@@ -119,7 +119,7 @@ needed to prove the ARGUMENT (not the whole calc) is date-typed was in its own s
 **Fix:** `_is_date_returning_call` now also recognizes a single-argument `MIN`/`MAX` wrapping a
 (recursively) date-returning call — deliberately excluding Tableau's 2-argument `MIN(a,b)`
 "smaller of two values" shape, a different operation this must not guess at. **Status:** ✅ Fixed
-(found on GCLM). **Verified live**: the exact stored formula evaluates to a real date-formatted
+(found on WorkbookA). **Verified live**: the exact stored formula evaluates to a real date-formatted
 string (`"Mar'22 - Jan'23"` embedded in the full label).
 
 ---
@@ -163,7 +163,7 @@ internally, since `dax.py`'s date-vs-datetime handling still needs that distinct
 
 ## Measure-promotion / column-vs-measure bugs
 
-### `cl.Slice By`-style promoted measure needed `SELECTEDVALUE`, not a bare column reference
+### `cl.Selector`-style promoted measure needed `SELECTEDVALUE`, not a bare column reference
 A pure branch-selection `IF(cond, 'T'[ColA], IF(cond, 'T'[ColB], ...))` is legal as a calculated
 COLUMN (row context makes each branch unambiguous) but illegal as a MEASURE (no row context at
 the top level) — "a single value for column... cannot be determined". **Fix:** `_resolver`

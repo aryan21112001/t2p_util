@@ -50,7 +50,7 @@ removes brackets from the ends of a string while a qualified reference carries t
 `pbir.py`'s mark-class rule table checked `m == "Gantt"`. Tableau's own XML never writes that --
 it writes `<mark class='GanttBar' />`. The rule never fired; all 6 real corpus Gantt marks fell to
 `tableEx` undecided, invisible unless someone read `RESIDUE.md` and cross-checked the mark name by
-hand. This fixture's own `Gantt View` worksheet used `<mark class='Gantt' />` too -- the SAME wrong
+hand. This fixture's own `Gantt Sheet` worksheet used `<mark class='Gantt' />` too -- the SAME wrong
 assumption, made independently while writing this file, so running the probe exercised nothing
 that would have caught it. Found instead by grepping the real corpus `.twb` files directly for
 every `<mark class='...'>` value actually written and diffing that list against the rule table --

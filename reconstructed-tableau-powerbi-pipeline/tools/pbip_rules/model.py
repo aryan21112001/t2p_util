@@ -14,20 +14,20 @@ TMDL shape, as actually emitted
 -------------------------------
 Verified against the generated corpus rather than assumed:
 
-    table 'Europe Report'                       <- indent 0
+    table 'Region Report'                       <- indent 0
         lineageTag: ...                         <- indent 1, a property
-        column 'Created By User Name'           <- indent 1, a child object
+        column 'Author Name'           <- indent 1, a child object
             dataType: string                    <- indent 2, its properties
             isHidden                            <-   valueless property (a flag)
-            sourceColumn: 'Created By User Name'
-        column 'Potential Violated Merchant' = IF(...)   <- single-line expression
+            sourceColumn: 'Author Name'
+        column 'Flagged Entity' = IF(...)   <- single-line expression
         column Clusters =                       <- expression is the indented block below
             <dax>
-        measure 'PV Growth' = DIVIDE(...)
-        hierarchy 'Issr Region Hierarchy'
-            level 'Issr Region'
-                column: 'Issr Region'           <- note the colon: a property, not a child
-        partition 'smekb.mvv_dashbord_dump' = m
+        measure 'Flag Growth' = DIVIDE(...)
+        hierarchy 'Grp Region Hierarchy'
+            level 'Grp Region'
+                column: 'Grp Region'           <- note the colon: a property, not a child
+        partition 'schema.table_dump' = m
             mode: import
             source =
                 let Source = Table.FromRows(...) in Source
@@ -43,7 +43,7 @@ Two syntactic traps this parser handles and a naive one does not:
 
 Names are unquoted with the same rules `pbip_lint._tmdl_declared_name` uses, because an
 unquoted TMDL identifier may legally contain `/`, `%`, `-` and parens -- a `\\w+` match
-truncates `Token/PAN` to `Token` and reports a false collision.
+truncates `Token/Source` to `Token` and reports a false collision.
 """
 from __future__ import annotations
 

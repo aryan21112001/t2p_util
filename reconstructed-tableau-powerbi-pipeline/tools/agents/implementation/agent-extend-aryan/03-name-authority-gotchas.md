@@ -32,10 +32,10 @@ global fallback is "probably fine" just because it compiles.
 
 ### Collision check (`_unique()`, `measure()`) compared names CASE-SENSITIVELY
 TOM's own name collection ignores case (Windows/SQL Server convention) — a real corpus workbook
-had a physical column `Bic Compliance Check` and a calculated-field copy captioned
-`BIC Compliance Check ` (differing only in case + a trailing space `sanitize()` already strips).
+had a physical column `Sample Check Alpha` and a calculated-field copy captioned
+`SAMPLE CHECK ALPHA ` (differing only in case + a trailing space `sanitize()` already strips).
 Two different Python strings slipped past the collision check, and Desktop refused to **open the
-file at all**: "Item 'BIC Compliance Check' already exists in the collection." Worse than a wrong
+file at all**: "Item 'SAMPLE CHECK ALPHA' already exists in the collection." Worse than a wrong
 visual — a hard load failure, and it passed preflight with 0 FAIL because preflight's own
 duplicate check was ALSO case-sensitive. **Fix:** collision resolution in `names.py` now folds
 case before comparing (table names, columns-per-table, measures model-wide); `preflight()` gained

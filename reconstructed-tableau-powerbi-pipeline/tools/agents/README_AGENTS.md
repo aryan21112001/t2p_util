@@ -234,7 +234,7 @@ It also writes a QA checklist (static DAX warnings that will error in Desktop, a
 field count that should always be 0) and, when more than one project is validated together,
 a batch `validation/EFFORT_SUMMARY.md` — total hours, a person-days estimate, and the top
 recurring decline reasons **across the whole batch**, so fixing one systemic pattern (like the
-DATEPARSE fix on Prevent Dashboard) shows up as the thing worth doing first, not buried per
+DATEPARSE fix on WorkbookB Dashboard) shows up as the thing worth doing first, not buried per
 workbook. When more than one distinct corpus group is present, it also writes
 `validation/EFFORT_CORPUS_ROLLUP.md`, the same buckets grouped by corpus instead of by workbook.
 This is the actual answer to "how much manual work is left across N dashboards, and
@@ -288,7 +288,7 @@ python3 agent-extend-dax-measures/dax_measures_extension_agent.py <workbook.twbx
 Each writes its own `*_EXTENSION_REPORT.md` into `<new_pbip_dir>` listing every promotion (with
 its DAX) and every candidate checked and declined, with a specific reason. **Measured so far:**
 `extend-tablecalc-quickcalcs` is the only one with a verified positive result on a real corpus
-workbook (2 Percent-of-Total measures promoted on Prevent Dashboard, out of 5 candidates found);
+workbook (2 Percent-of-Total measures promoted on WorkbookB Dashboard, out of 5 candidates found);
 `extend-tablecalc-rank` and `extend-dax-measures` have each been run against one real workbook and
 promoted 0 measures there (the candidates present had no resolvable addressing) — architecturally
 sound but not yet demonstrated to fire successfully on a real workbook. None of the three has been
@@ -314,7 +314,7 @@ inside an agent:
 1. **Reading a Tableau screenshot to decide a visual type.** 62% of corpus worksheets use the
    `Automatic` mark, which Tableau resolves at *render* time — the chart type is genuinely not in
    the file. A screenshot is new information, not better reasoning.
-2. **Hand-authoring DAX for a gap the parser declines.** Example: `cl.Anchor Date` uses Tableau's
+2. **Hand-authoring DAX for a gap the parser declines.** Example: `cl.Base Date` uses Tableau's
    `DATE()` in both senses at once — an outer no-op cast and an inner string parse — so it needs a
    human to drop one and convert the other.
 3. **Deciding what a free-entry parameter should become** (fixed list? what-if parameter? accept the

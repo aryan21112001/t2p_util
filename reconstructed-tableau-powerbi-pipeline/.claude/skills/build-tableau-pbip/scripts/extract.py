@@ -46,7 +46,7 @@ INTERNAL_MARKERS = ("__tableau_internal_object_id__", ":measure names", ":measur
 # class is Tableau's own aggregation-role heuristic from SQL introspection, not a signal of
 # whether the record is a real column. Only other classes (e.g. 'capability') are non-column
 # metadata. Filtering to class='column' alone silently drops every real numeric/summable column
-# that never got an explicit <column> override -- confirmed on Prevent Dashboard's vwOI_Insights
+# that never got an explicit <column> override -- confirmed on WorkbookB Dashboard's vw_facts
 # object, where 2 real columns (both class='measure', no override) were missing from every
 # relationship's join-key attribution, which starved split_federated_datasource()'s all-or-nothing
 # eligibility check and collapsed 14 real tables into 1.
@@ -71,7 +71,7 @@ def find_twb(folder):
     """Locate a .twb inside a folder.
 
     NOT glob: the folder name derives from the workbook filename and is data, not a pattern.
-    `[VRM] Compliance Dashboard` is a real workbook in this corpus and `[VRM]` is a valid glob
+    `[WB] Sample Dashboard` is a real workbook in this corpus and `[WB]` is a valid glob
     character class, which would silently match nothing and drop the workbook with no error.
     """
     for n in sorted(os.listdir(folder)):
@@ -84,7 +84,7 @@ def unpack(src, workdir):
     """Unpack a .twbx (or accept a bare .twb) and return (twb_path, package_dir).
 
     Zip-ness is decided by SNIFFING THE BYTES (`zipfile.is_zipfile`), never by the file
-    extension. A real corpus workbook shipped as `Prevent Dashboard.twbx` is, on disk, plain
+    extension. A real corpus workbook shipped as `WorkbookB Dashboard.twbx` is, on disk, plain
     `<workbook>` XML with no ZIP wrapper at all -- confirmed by parsing it directly with
     `ET.fromstring` and finding a real `<workbook version=...>` root, not a truncated/corrupt
     archive. Trusting `.lower().endswith(".twb")` alone made that indistinguishable from a
@@ -165,14 +165,14 @@ def classify_formula(f):
 
 _PERCENT_FORMAT_RE = re.compile(r"^p(\d+)(?:\.(0+))?%$")
 # Matches a worksheet-local <column> formula that is EXACTLY a bare pass-through alias,
-# e.g. `([Calculation_868913308838137858])` -- nothing else, no arithmetic, no IF.
+# e.g. `([Calculation_291264244239166360])` -- nothing else, no arithmetic, no IF.
 _WRAPPER_ALIAS_RE = re.compile(r"^\(\[([^\]]+)\]\)$")
 
 
 def translate_number_format(default_format):
     """Tableau's own `default-format` attribute on a calc's `<column>` (e.g. `p0.00%`) -> a
     Power BI `formatString`, for the ONE pattern class actually verified against this corpus:
-    percentage with N decimal places. 58 real fields across achc alone carry `default-format`,
+    percentage with N decimal places. 58 real fields across WorkbookJ alone carry `default-format`,
     all `p0.00%` -- confirmed this always sits on a real calculated field (`<calculation>`
     present), never a plain pass-through column.
 
@@ -226,7 +226,7 @@ def extract_datasource(ds, anc, provenance, name_map=None):
     workbook (`federated.0xyz`, `sqlproxy.0xyz`) and it is always present there. A STANDALONE
     `.tds`/`.tdsx` root -- what `resolve_siblings` loads for a `sqlproxy` proxy -- carries no
     `name` and no `caption` at all; the only identifying attribute on that root is
-    `formatted-name` (the published datasource's display name, e.g. "MSD_Billing_Details").
+    `formatted-name` (the published datasource's display name, e.g. "SRC_Details_A").
     Falling back to the literal string "Data" for both `tableau_name` and `caption` when `name`
     is absent silently collapses every resolved-tds table with a generic caption onto the SAME
     allocation key -- confirmed on a real corpus workbook where two DIFFERENT tds files (two
@@ -240,15 +240,15 @@ def extract_datasource(ds, anc, provenance, name_map=None):
     `name_map` (optional, workbook-global raw-name -> caption, built once by the caller from every
     datasource's explicit `<column caption=...>` tags): consulted ONLY by the metadata-record
     backfill below, to resolve a field THIS datasource never gives its own caption to. Real corpus
-    bug (GCLM): `for_view` is a genuine column on 7 of 8 datasources, but only 2 of them (Key
-    Highlights, Recommendations) carry an explicit `<column caption='For View' name='[for_view]'>`
-    -- the other 5 (e.g. Activation) reference it ONLY via `<metadata-record>`, with no `<column>`
+    bug (WorkbookA): `view_flag` is a genuine column on 7 of 8 datasources, but only 2 of them (Highlights Page
+    , Gamma) carry an explicit `<column caption='View Flag' name='[view_flag]'>`
+    -- the other 5 (e.g. Beta) reference it ONLY via `<metadata-record>`, with no `<column>`
     tag at all. Every FILTER/shelf reference to it, anywhere in the workbook, resolves its caption
-    through this same global `name_map` and gets "For View" back (borrowed from Key Highlights'
+    through this same global `name_map` and gets "View Flag" back (borrowed from Highlights Page'
     tag) regardless of which datasource it is really on. Before this fix, the backfill below used
-    the bare metadata-record name verbatim with no caption lookup, so Activation's own column
-    landed in the IR named "for_view" (lowercase) -- a different string than "For View" -- so
-    `by_spelling("For View", table="Activation")` could never find it locally, no matter how good
+    the bare metadata-record name verbatim with no caption lookup, so Beta's own column
+    landed in the IR named "view_flag" (lowercase) -- a different string than "View Flag" -- so
+    `by_spelling("View Flag", table="Beta")` could never find it locally, no matter how good
     the caller's own table hint was: the names themselves disagreed, not just which table owned
     them. This is the fix underneath `pbir.py`'s `candidate_tables` parameter, not a replacement
     for it -- that fix supplies the right table to look in; this one makes sure the right table
@@ -270,7 +270,7 @@ def extract_datasource(ds, anc, provenance, name_map=None):
         # -- that is a real fact about Tableau's behaviour, not a guess. Previously never read at
         # all, which is why DATEPART('weekday',...)/DATETRUNC('week',...) always declined in
         # dax.py on the theory that this setting was unrecoverable from the source file --
-        # confirmed wrong: e.g. Prevent Dashboard's own XML states start-of-week='sunday'
+        # confirmed wrong: e.g. WorkbookB Dashboard's own XML states start-of-week='sunday'
         # outright, and 3 other real corpus workbooks explicitly say 'monday'.
         "date_options": {"start_of_week": "sunday", "fiscal_year_start": "january"},
     }
@@ -348,7 +348,7 @@ def extract_datasource(ds, anc, provenance, name_map=None):
     # Per-column physical-object attribution, for a federated datasource only (object_id stays
     # None on every column when there is no <object-graph> -- a single-object datasource has
     # nothing to attribute against). `<metadata-record>`'s own `<object-id>` is the authoritative
-    # source: confirmed on a real corpus workbook (Digital Sales - Leads Dashboard) that EVERY
+    # source: confirmed on a real corpus workbook (WorkbookH) that EVERY
     # metadata-record column carries it (214/214), while a <column> override element carries no
     # per-object information at all -- only local-name-keyed lookup into the metadata-records
     # recovers which physical object a column (override or not) actually belongs to.
@@ -382,12 +382,12 @@ def extract_datasource(ds, anc, provenance, name_map=None):
         # this exact raw field, captioned on ANOTHER datasource (e.g. a Tableau data-blend
         # partner table), keeps its bare internal name here while every OTHER reference to it
         # workbook-wide resolves to the shared caption, so a worksheet's own field well silently
-        # binds to the WRONG table's same-captioned column instead (GCLM: Acquisition's own
-        # `[prod_id]` has no caption on its own <column> tag, Key Highlights' DOES ('Prod Id') --
-        # left bare, `_resolve_field`'s global by_spelling fallback bound every Acquisition
-        # worksheet's "Prod Id" field well to Key Highlights' column instead of Acquisition's own,
-        # across an unrelated/non-propagating relationship, so "2.3 Issuer YoY Growth"/"2.3 Market
-        # YoY Growth" rendered the identical grand-total value for every Prod Id category).
+        # binds to the WRONG table's same-captioned column instead (WorkbookA: Alpha's own
+        # `[item_id]` has no caption on its own <column> tag, Highlights Page' DOES ('Item Id') --
+        # left bare, `_resolve_field`'s global by_spelling fallback bound every Alpha
+        # worksheet's "Item Id" field well to Highlights Page' column instead of Alpha's own,
+        # across an unrelated/non-propagating relationship, so "Sheet 5 - Growth Rate A"/"Sheet 5 - Alt YoY Growth
+        # " rendered the identical grand-total value for every Item Id category).
         caption = c.get("caption") or (name_map or {}).get(name) or (name or "").strip("[]")
         calc = c.find("calculation")
         al = {a.get("key", "").strip('"'): a.get("value")
@@ -515,7 +515,7 @@ def split_federated_datasource(rec):
     either O itself or reachable from O by ONE many-to-one hop (O is the "many" side, the
     referenced object is the "one" side) -- i.e. a row on O can RELATED() to each of them directly.
     In a real star (one fact-shaped "many" object joined to several "one"-side dimension objects,
-    Prevent Dashboard's `Insights` being the corpus example), that hub always exists whenever the
+    WorkbookB Dashboard's `Insights` being the corpus example), that hub always exists whenever the
     referenced objects are dimensions the fact object touches, even though NONE of them is
     `primary` (primary is a one-side leaf itself, never the fact object -- RELATED() from a
     one-side leaf to another one-side leaf is never valid, only from the many side inward). When a
@@ -531,9 +531,9 @@ def split_federated_datasource(rec):
     same-name column that has moved to a sibling table and silently emit a same-table-looking DAX
     reference that is actually wrong once the tables are no longer one.
 
-    Confirmed against a real corpus workbook (Digital Sales - Leads Dashboard): 3 objects, 2
+    Confirmed against a real corpus workbook (WorkbookH): 3 objects, 2
     qualifying relationships (a real star, hub object never on the "many" side), 214 physical
-    columns cleanly attributed 1:1, and exactly 4 of 111 calcs are genuinely cross-object (`AANR`,
+    columns cleanly attributed 1:1, and exactly 4 of 111 calcs are genuinely cross-object (`Sheet C`,
     `Pipeline`, `Pipeline (1)`, `Regions for Funnel` -- each mixes a global-object field with a
     meetings- or opportunity-object field in one formula) and decline correctly rather than
     silently mis-resolving.
@@ -625,8 +625,8 @@ def split_federated_datasource(rec):
             # A referenced calc that itself mixes more than one concrete object is not
             # automatically `_CROSS` here either -- `_find_hub` gets the SAME chance to find a
             # RELATED()-legal anchor for it that the outer per-calc loop gives a calc with direct
-            # multi-object references (this is exactly how `cl.Slice By`, in a real workbook,
-            # reaches its own resolvable hub even though one of ITS branches is `[Partner/Client]`
+            # multi-object references (this is exactly how `cl.Selector`, in a real workbook,
+            # reaches its own resolvable hub even though one of ITS branches is `[Entity/Client]`
             # -- itself a 2-object calc that only resolves once THIS check exists). `_CROSS in
             # homes` still vetoes unconditionally: a genuinely unresolvable sub-reference cannot be
             # papered over by finding a hub for the concrete remainder.
@@ -762,7 +762,7 @@ def split_federated_datasource(rec):
 
 def _og_object_table(obj_el):
     """An object-graph `<object>`'s real, queryable physical table name (e.g.
-    '[global_digital_sales].[bdr_lead_meetings_tableau]'), from its own `<properties context=''>`
+    '[global_digital_sales].[source_x_meetings]'), from its own `<properties context=''>`
     relation -- the SAME name a native connector would need to query that one physical object
     independently, as opposed to the federated `[Extract].[...]` alias the `context='extract'`
     properties block carries (that alias names the one flattened extract, not this one object)."""
@@ -800,7 +800,7 @@ def parse_og_relationship(rel):
 
     Each end-point can carry `unique-key='true'` -- Tableau's own declaration that this object's
     side of the join key is unique, i.e. the "one" side of a one-to-many. Real corpus example
-    (Prevent Dashboard): every `<second-end-point>` on this datasource's 13 relationships carries
+    (WorkbookB Dashboard): every `<second-end-point>` on this datasource's 13 relationships carries
     it, none of the `<first-end-point>`s do -- captured per end-point rather than assumed to be on
     one fixed side, since nothing in the schema guarantees which end-point carries it.
     """
@@ -867,11 +867,11 @@ def _fieldref_parts(m):
     unconditionally, as this used to, is only ever correct for the 3-segment shape; for the
     4-segment one it silently returns the underlying-agg placeholder ("sum"/"usr"/"ctd"/"cnt")
     instead of the real field, and throws the real field away in the discarded tail. Real corpus
-    example: Prevent Dashboard's "1W - Slice By" worksheet's own `[pcto:usr:REALFIELD:qk]` cols
+    example: WorkbookB Dashboard's "Sheet 1 - Selector" worksheet's own `[pcto:usr:REALFIELD:qk]` cols
     ref -- REALFIELD was never recovered anywhere downstream before this.
 
-    A 5-segment shape (`agg:underlying-agg:FIELD:kind:N`, e.g. GCLM's
-    `[pcto:sum:Calculation_993606723128832005:qk:4]`) adds a trailing numeric partition-scope
+    A 5-segment shape (`agg:underlying-agg:FIELD:kind:N`, e.g. WorkbookA's
+    `[pcto:sum:Calculation_211015251426935556:qk:4]`) adds a trailing numeric partition-scope
     index -- stripping it before taking parts[-2] recovers FIELD here too.
     """
     agg_raw, rest = m.group(1), m.group(2)
@@ -887,7 +887,7 @@ def _fieldref_underlying_agg(m):
     -- e.g. "sum" in `[pcto:sum:Calculation_X:qk]`), or None for the ordinary 3-segment/1-segment
     shape, which has no such segment at all. This is the calc PILL's own base-value aggregation
     when Tableau never wrote an explicit `aggregation=` attribute on the `<table-calc>` itself
-    (confirmed real corpus shape: Prevent Dashboard's "1W - Slice By" PctTotal pill carries no
+    (confirmed real corpus shape: WorkbookB Dashboard's "Sheet 1 - Selector" PctTotal pill carries no
     `aggregation=` at all -- this segment is the ONLY place its base SUM/AVG/etc. is recorded)."""
     rest = m.group(2)
     parts = rest.split(":")
@@ -957,7 +957,7 @@ def _measure_names_pivot(ws, name_map):
     says "[:Measure Names]", a pseudo-field with no column to resolve. It's recorded on a
     <filter class="categorical" column="...:Measure Names"> whose <groupfilter function="member">
     children each hold one real, fully-qualified measure reference, in pivot order. Real corpus
-    example: Prevent Dashboard's "1W - Table" -- 10 <groupfilter function="member"> children,
+    example: WorkbookB Dashboard's "Sheet 1 - Table" -- 10 <groupfilter function="member"> children,
     each a `"[federated...].[agg:Calculation_X:qk]"` string.
 
     Returns [] when this worksheet has no such filter -- never guessed at, same as every other
@@ -999,9 +999,9 @@ def worksheet_tc_addressing(root, name_map):
     than repeating the same non-information under a different label.
 
     ONE `<column-instance>` can carry MULTIPLE `<table-calc>` SIBLING children -- Tableau's shape
-    when several tightly-coupled calcs share one shelf slot (real corpus example: `Y Axis
-    Position`'s column-instance holds its own addressing PLUS one entry each for the two other
-    calcs it references, `AANR / Owner Axis Test` and `Normalized AANR`, neither of which is ever
+    when several tightly-coupled calcs share one shelf slot (real corpus example: `Axis Position Calc
+    `'s column-instance holds its own addressing PLUS one entry each for the two other
+    calcs it references, `Sheet C / Owner Axis Test` and `Normalized Sheet C`, neither of which is ever
     placed on a shelf itself). A `<table-calc>` WITHOUT its own `field=` attribute addresses the
     column-instance's own `column`; WITH one, `field=` -- a fully-qualified reference like
     `[ds].[Calculation_X]` -- names which OTHER calc this particular entry is for, overriding the
@@ -1043,7 +1043,7 @@ def _fieldref_inner(m):
     """The exact text inside a FIELDREF match's OWN second bracket pair, reconstructed from its
     two groups (`(agg:)?rest` -> `agg:rest` or bare `rest`) -- i.e. `m.group(0)` with the leading
     `[ds].[` and trailing `]` stripped off, nothing else changed. Confirmed against real corpus
-    data (Prevent Dashboard's "3B - Days to CE Eligible") that this is the SAME string Tableau
+    data (WorkbookB Dashboard's "Sheet 3 - Days Eligible") that this is the SAME string Tableau
     writes, unbracketed, as a `<column-instance name=...>` attribute -- e.g. a shelf ref
     `[ds].[pcto:sum:Calculation_X:qk]` and a column-instance `name='[pcto:sum:Calculation_X:qk]'`
     share this exact inner text.
@@ -1089,8 +1089,8 @@ def worksheet_pcto_meta(root, name_map):
 
     Keyed by the column-instance's OWN `name=` attribute, bracket-stripped -- NOT `column=`,
     which only names which underlying field an instance ultimately points at, not which SPECIFIC
-    use of it this is. Real corpus proof this distinction is load-bearing, not academic: Prevent
-    Dashboard's "3B - Days to CE Eligible" carries two column-instances with the IDENTICAL
+    use of it this is. Real corpus proof this distinction is load-bearing, not academic: WorkbookB
+    Dashboard's "Sheet 3 - Days Eligible" carries two column-instances with the IDENTICAL
     `column='[Calculation_X]'` but different `name=` -- one plain (no table-calc, actually placed
     on the Rows shelf) and one Percent-of-Total-tagged (used elsewhere in the same worksheet).
     Keying on `column=` collapses the two and wrongly tags the plain, unrelated shelf placement
@@ -1128,7 +1128,7 @@ def _label_font(ws):
     card's value IS the worksheet's own mark data-label text (Tableau's "Label" button -> "Font
     ..." on the Marks card), which is `element='datalabel'`, NOT `element='label'` -- confirmed by
     counting every field-less font-size/font-family `<format>` by its enclosing scope across a
-    real corpus workbook (GCLM): `datalabel` and `worksheet` together account for the bulk of
+    real corpus workbook (WorkbookA): `datalabel` and `worksheet` together account for the bulk of
     real overrides (62 of 114), while `label` has only 3, all font-size, zero font-family. A first
     implementation targeted `element='label'` on the (wrong) assumption that it meant "the mark's
     value label" -- it does not; the real scope is `datalabel`, and the worksheet-wide font (set
@@ -1182,8 +1182,8 @@ def extract_worksheets(root, name_map, pcto_meta=None):
         # `<mark>` above is always the OUTER/default pane's own mark ('Automatic' on every real
         # corpus instance found) -- the two measures' REAL marks (one 'Bar', one 'Line') live one
         # level down, on the two IDENTIFIED sub-panes (`<pane id=...>`), each carrying its own
-        # `y-axis-name` attribute naming which measure it belongs to. Confirmed on Prevent
-        # Dashboard's "1W - Trend": `<pane><mark class='Automatic'/></pane>` (the default,
+        # `y-axis-name` attribute naming which measure it belongs to. Confirmed on WorkbookB
+        # Dashboard's "Sheet 1 - Trend": `<pane><mark class='Automatic'/></pane>` (the default,
         # id-less outer pane) alongside `<pane id='1' y-axis-name='...'><mark class='Bar'/></pane>`
         # and `<pane id='2' y-axis-name='...'><mark class='Line'/></pane>`. Only id-bearing panes
         # are captured -- the id-less default pane carries no per-measure information at all.
@@ -1203,7 +1203,7 @@ def extract_worksheets(root, name_map, pcto_meta=None):
                 # Tableau writes 2+ fields stacked on one shelf as an arbitrarily-deep nested
                 # `(A / (B / (C / D)))` expression, not a flat delimiter list -- confirmed against
                 # this corpus's own `<rows onTop='true' total='true'>` shelves (real example:
-                # Opportunity List nests 10+ fields this way). FIELDREF.finditer() finds every
+                # Sheet List A nests 10+ fields this way). FIELDREF.finditer() finds every
                 # `[ds].[field]` pair by pattern regardless of the surrounding parens/slashes, in
                 # left-to-right = shelf-hierarchy order, so no paren-depth parsing is needed.
                 matches = list(FIELDREF.finditer(e.text))
@@ -1265,12 +1265,12 @@ def extract_worksheets(root, name_map, pcto_meta=None):
         # DEFINITIONS this module already parses elsewhere. This is the exact same per-datasource
         # key `pbir.py`'s own `na.tables` dict is keyed by (see the dashboard-zone `zone["param"]`
         # fix) -- a worksheet with NO measure anywhere in its encodings (a plain dimension/label
-        # display, e.g. "show this row's own Ctry/Issr as text") gives `_query_state`'s own
+        # display, e.g. "show this row's own Ctr/Grp as text") gives `_query_state`'s own
         # `anchor_tables` scan nothing to seed from, since that scan only ever looks at resolved
-        # MEASURES. 98 of 382 real corpus (GCLM) worksheets have this zero-measure shape, and
+        # MEASURES. 98 of 382 real corpus (WorkbookA) worksheets have this zero-measure shape, and
         # every single-field reference in one of them fell through to the GLOBAL (unscoped,
         # first-table-wins) resolution path for lack of any other hint -- confirmed on
-        # "Mkt_acti"'s own `Ctry` field landing on `Recommendations` instead of `Activation`.
+        # "Sheet_x"'s own `Ctr` field landing on `Gamma` instead of `Beta`.
         # Captured here, unconditionally, so a consumer can fall back to it when its own
         # measure-seeded anchor is empty; this worksheet's OTHER fields already resolve correctly
         # today whenever a measure IS present, so this is purely an additional fallback source,
@@ -1359,7 +1359,7 @@ def classify_filter(f, caption, name_map):
             # categorical quick-filter's dropdown regardless of whether "(All)" is a real domain
             # value, and distinct from the ui-action-filter marker already excluded above (that
             # one records a DIFFERENT reset-state shape, action-driven rather than a standalone
-            # filter card). Confirmed empirically on a real corpus workbook (GCLM): queried the
+            # filter card). Confirmed empirically on a real corpus workbook (WorkbookA): queried the
             # field's own embedded .hyper extract directly (247,425 rows for one such field,
             # `rgn`) and found zero rows valued literally "(All)" -- this is a sentinel, not
             # data. Previously emitted as a literal `In` match on the string "(All)", which
@@ -1418,7 +1418,7 @@ def flatten_runs(elem):
     return re.sub(r"\s+", " ", txt).strip() or None
 
 
-# Tableau's own numeric alignment code on a <run> -- 0/1/2 observed across achc, Digital Sales,
+# Tableau's own numeric alignment code on a <run> -- 0/1/2 observed across WorkbookJ, WorkbookH,
 # Bookshop (816+ real instances), matching the community-documented convention for this
 # attribute. Not verified against an official Tableau schema doc (none available here); low risk
 # if wrong -- worst case is a text box's horizontal alignment being off, not a data/crash issue.
@@ -1435,7 +1435,7 @@ def parse_formatted_text(elem):
     zone's overall horizontal alignment, taken from the first run that declares one (Tableau does
     not vary alignment mid-paragraph in any real corpus example checked).
 
-    Real corpus zones with >1 run are not rare -- achc alone has 128 multi-run text zones
+    Real corpus zones with >1 run are not rare -- WorkbookJ alone has 128 multi-run text zones
     (vs. 894 single-run) -- so this cannot be a single flattened string and still be correct.
 
     `fontname` (e.g. 'Segoe UI Semibold', 'Agency FB') was captured nowhere until now -- every
@@ -1467,7 +1467,7 @@ def parse_formatted_text(elem):
 def parse_zone_style(z):
     """Tableau's `<zone-style>` background-color/border for a zone -- only meaningful values
     (not none/transparent/default-white) are returned, so a zone Tableau never actually painted
-    doesn't grow an unwanted box in Power BI. Real corpus evidence (achc): 136 of 1064 `text`
+    doesn't grow an unwanted box in Power BI. Real corpus evidence (WorkbookJ): 136 of 1064 `text`
     zones have a real, non-default background-color -- used as colored banner bars/dividers,
     completely dropped before this (`zone-style` was never read anywhere in this pipeline)."""
     zs = z.find("zone-style")
@@ -1497,8 +1497,8 @@ def resolve_title(elem, ws_name):
     reference like `<[federated.xxx].[some_field]>`) depend on live filter/parameter state at
     render time, which a static string cannot reproduce -- emitting the literal bracket syntax
     as if it were real title text would be worse than no title (a real corpus workbook,
-    10000056_achc_WF_Payments_Insights, has 22 titles with one of these; showing
-    "Visa Card <[Parameters].[Parameter 1]>" verbatim is confusing, not merely incomplete), so
+    WorkbookJ, has 22 titles with one of these; showing
+    "Sample Card <[Parameters].[Parameter 1]>" verbatim is confusing, not merely incomplete), so
     a title carrying any OTHER token after the Sheet Name substitution is declined (returns
     None) rather than guessed at -- same fail-closed rule as everywhere else in this pipeline.
     """
@@ -1533,8 +1533,8 @@ def _build_window_guid_map(root):
     `id` attribute on `<window>` itself. An earlier pass over this exact problem checked for
     an `id` attribute, correctly found none, and concluded the GUID was unresolvable; that
     conclusion was wrong -- it never looked for the nested `<simple-id>` element. Confirmed
-    against two real corpus workbooks: 10000056_achc_WF_Payments_Insights resolves 21/21 of its
-    goto-sheet button targets this way, Digital Sales - Leads Dashboard resolves 8/9 (the 1
+    against two real corpus workbooks: WorkbookJ resolves 21/21 of its
+    goto-sheet button targets this way, WorkbookH resolves 8/9 (the 1
     miss has no `<simple-id>` anywhere in the file at all -- a genuinely dangling reference,
     correctly left unresolved rather than guessed at).
     """
@@ -1563,7 +1563,7 @@ def _nav_button_hint(z):
     text on the rare decline this pipeline still has to fall back to when
     `_nav_button_target` cannot resolve a real target (see that function). Falls back to the
     button's icon FILENAME when there is no caption -- still better than nothing, though a
-    filename like "WF_icon_house_rgb_F1_WF Red.png" is a much weaker hint than a real caption.
+    filename like "icon_house_a.png" is a much weaker hint than a real caption.
     """
     btn = z.find("button")
     if btn is None or not _GOTO_SHEET_RE.search(btn.get("action") or ""):
@@ -1656,15 +1656,15 @@ def extract_action_source_worksheets(root):
     dashboard action in Tableau -- filter (`tsc:tsl-filter`) or highlight (`tsc:brush`) alike,
     whichever command. Tableau's own default is the OPPOSITE of Power BI's: a worksheet never
     affects any other sheet on its dashboard unless the author explicitly wired an Action for it
-    (Dashboard > Actions...) -- confirmed on GCLM's own 'Dormancy Management' dashboard, whose
-    `Spend_migration_viz`/`Dormancy_pattern_viz` filter actions carry careful per-action
+    (Dashboard > Actions...) -- confirmed on WorkbookA's own 'Status Page' dashboard, whose
+    `Migration_viz`/`Pattern_viz` filter actions carry careful per-action
     `exclude` lists (deliberately keeping other worksheets, e.g. `recency`, OUT of their own
     filter's reach), and whose `recency` worksheet is never the `source` of ANY action at all.
     Power BI's `drillFilterOtherVisuals` defaults to True on every visual regardless, so a
     worksheet with zero authored outgoing actions still cross-filters its whole page's siblings
-    once converted -- selecting a cell on GCLM's `recency` heatmap, whose rows occupy a disjoint
-    `For View='Recency'` slice of the single wide `Dormancy` table, filtered every OTHER
-    Dormancy-bound card (each pinned to its OWN `For View` slice via its own baked-in filter) to
+    once converted -- selecting a cell on WorkbookA's `recency` heatmap, whose rows occupy a disjoint
+    `View Flag='Recency'` slice of the single wide `Delta` table, filtered every OTHER
+    Delta-bound card (each pinned to its OWN `View Flag` slice via its own baked-in filter) to
     an empty row set, blanking the entire page on any heatmap click.
     `pbir.py`'s `_visual` uses this to decide `drillFilterOtherVisuals` per worksheet: True only
     when `(dashboard, worksheet)` is a member of this set, matching Tableau's own opt-in default
@@ -1697,7 +1697,7 @@ def extract_dashboards(root, name_map, ws_names):
         # `<devicelayouts>` -- Tableau's auto-generated Phone/Tablet layouts, each a COMPLETE
         # second copy of the same zone tree (same ids, same names) against a DIFFERENT canvas
         # (a device layout's own <size> is unrelated to the primary dashboard's). A real corpus
-        # workbook (SMB IRF Program) has one on 3 of its 4 dashboards; `db.iter("zone")` walked
+        # workbook (WorkbookE) has one on 3 of its 4 dashboards; `db.iter("zone")` walked
         # the whole `<dashboard>` subtree and silently pulled in every device-layout zone
         # alongside the real ones -- every worksheet on those dashboards was emitted TWICE (one
         # visual positioned correctly against the primary canvas, one duplicate whose geometry
@@ -1714,12 +1714,12 @@ def extract_dashboards(root, name_map, ws_names):
             rec = {"kind": kind, "name": nm, "geom": geom(z),
                    "param": z.get("param"), "text": None,
                    # Tableau's own "hide this container from the published view" flag on a zone
-                   # (and every zone nested inside it -- Prevent Dashboard's "Filter Container"
+                   # (and every zone nested inside it -- WorkbookB Dashboard's "Filter Container"
                    # panel and its whole nested parameter-control tree are 257 zones deep, ALL
                    # carrying this). Never read before this: the whole hidden panel was emitted
                    # as visible Power BI visuals, landing wherever Tableau had left its
-                   # never-meant-to-be-seen layout (in Prevent Dashboard's case, floating on top
-                   # of the "1W - Slice By" bar chart) -- not a translation gap, a translation of
+                   # never-meant-to-be-seen layout (in WorkbookB Dashboard's case, floating on top
+                   # of the "Sheet 1 - Selector" bar chart) -- not a translation gap, a translation of
                    # something the workbook author explicitly hid.
                    "hidden": (z.get("hidden-by-user") or "").lower() == "true"}
             if kind == "text":
@@ -1731,7 +1731,7 @@ def extract_dashboards(root, name_map, ws_names):
                 # A dashboard zone can hide a worksheet's own title just for THIS placement,
                 # independent of the worksheet's own <title> definition (Tableau's per-zone
                 # "Edit Title" toggle) -- absent means Tableau's own default, which is shown.
-                # Real corpus workbook (10000056_achc_WF_Payments_Insights): 994 zones set this
+                # Real corpus workbook (WorkbookJ): 994 zones set this
                 # to 'false', zero set 'true'; never read before this, so every one of those
                 # zones got a title anyway whenever the worksheet itself had one.
                 rec["show_title"] = (z.get("show-title") or "true").lower() != "false"
@@ -1742,18 +1742,18 @@ def extract_dashboards(root, name_map, ws_names):
                 # Tableau's own declared quick-filter style for this zone ('dropdown',
                 # 'checkdropdown' for multi-select, 'list', etc.) -- never read before this, so
                 # every filter rendered as Power BI's default List style regardless of what
-                # Tableau actually showed. Real corpus: achc's 10 filter zones are all
-                # 'dropdown'; Digital Sales/NGPO/Caribbean/SMB IRF also have 'checkdropdown'.
+                # Tableau actually showed. Real corpus: WorkbookJ's 10 filter zones are all
+                # 'dropdown'; WorkbookH/WorkbookC/WorkbookD/SMB IRF also have 'checkdropdown'.
                 rec["filter_mode"] = z.get("mode")
             if kind == "paramctrl":
                 rec["field"] = (z.get("param") or "").replace("[Parameters].", "").strip("[]")
                 # Tableau's own "Edit Title..." override for a parameter control -- a purpose-
                 # built caption for THIS zone specifically, independent of the parameter's own
                 # name (which is all a slicer's default header can show otherwise). Real corpus
-                # confirmation (Prevent Dashboard "1D - OI Summary"): every one of its 10
+                # confirmation (WorkbookB Dashboard "Sheet 2 - Summary"): every one of its 10
                 # paramctrl zones sets `custom-title='true'`, and the actual captions
-                # ("Chart Metric Type" for `pl.Selected Metric`, "Color Bar Chart By" for
-                # `pl.Color By`, "Slice By", "Date Type", "Report Period", ...) read nothing
+                # ("Chart Metric Type" for `pl.Chosen Metric`, "Color Bar Chart By" for
+                # `pl.Color By`, "Selector", "Date Type", "Period Sel", ...) read nothing
                 # like the parameter's own internal name -- carrying only the parameter's own
                 # (prefix-stripped) name, as this pipeline did before, is a real, silent
                 # mislabel, not a cosmetic nuance.
@@ -1822,7 +1822,7 @@ def extract_parameters(root):
     # Recover an orphaned internal parameter ID: a calc can reference [Parameters].[X] where X
     # was never declared in the canonical top-level Parameters datasource above -- only in a
     # stale, worksheet-embedded copy of it (Tableau doesn't always re-point every calc when a
-    # parameter is effectively replaced/recreated; real corpus example: Prevent Dashboard's
+    # parameter is effectively replaced/recreated; real corpus example: WorkbookB Dashboard's
     # calc-level `[Parameters].[Parameter 7 1]`, absent from the canonical block, present only in
     # per-worksheet copies). Safe to fold in, NOT a guess: only when EVERY <column name="[X]"
     # param-domain-type=...> anywhere in the whole document unanimously agrees on one caption,
@@ -2090,7 +2090,7 @@ if __name__ == "__main__":
 
     # <datasource>/<overridable-settings>/<date-options start-of-week=.../> -- a DIRECT child of
     # <datasource>, a SIBLING of <connection> (confirmed via a real parent-chain walk over
-    # Prevent Dashboard's actual XML, not assumed from indentation) -- Tableau's real week-start/
+    # WorkbookB Dashboard's actual XML, not assumed from indentation) -- Tableau's real week-start/
     # fiscal-year-start setting for a datasource, previously never read at all. A datasource with
     # NO <date-options> element must fall back to Tableau's own documented defaults
     # ("sunday"/"january"), not surface None -- every downstream reader (dax.py) expects a real
@@ -2140,10 +2140,10 @@ if __name__ == "__main__":
         f"expected 1 (the primary-layout one only): {_ws_zones!r}")
     print("extract.py self-test OK (devicelayouts zones excluded)")
 
-    # A paramctrl zone's own "Edit Title..." override -- real corpus shape (Prevent Dashboard
-    # "1D - OI Summary"): `custom-title='true'` with a <formatted-text><run> giving the zone a
+    # A paramctrl zone's own "Edit Title..." override -- real corpus shape (WorkbookB Dashboard
+    # "Sheet 2 - Summary"): `custom-title='true'` with a <formatted-text><run> giving the zone a
     # purpose-built caption ("Chart Metric Type") that reads nothing like the parameter's own
-    # internal name ("Parameter 7"/"pl.Selected Metric"). Must be captured; a paramctrl with NO
+    # internal name ("Parameter 7"/"pl.Chosen Metric"). Must be captured; a paramctrl with NO
     # custom-title set (or set to 'false') must get no `custom_title` key at all -- additive.
     _db_paramctrl_xml = ET.fromstring(
         "<dashboard name='D'><size maxwidth='1300' maxheight='900' /><zones>"
@@ -2164,7 +2164,7 @@ if __name__ == "__main__":
     print("extract.py self-test OK (paramctrl custom-title override captured when set, "
           "absent -- not even the key -- when Tableau never set one)")
 
-    # `_nav_button_hint`: real corpus shapes (10000056_achc_WF_Payments_Insights) -- a captioned
+    # `_nav_button_hint`: real corpus shapes (WorkbookJ) -- a captioned
     # goto-sheet button, an icon-only goto-sheet button (no caption), and a goto-sheet button
     # with neither. A non-navigation button (e.g. show/hide, or a blank action) must return None
     # so the caller falls back to the honest generic "no mapped Power BI visual" gap instead of
@@ -2172,16 +2172,16 @@ if __name__ == "__main__":
     _btn_captioned = ET.fromstring(
         "<zone type-v2='dashboard-object'>"
         "<button action='tabdoc:goto-sheet window-id=\"{DC4DC9F1-B29B-444E-8D13-A35E219A28F4}\"'>"
-        "<button-visual-state><caption>Operational Performance</caption></button-visual-state>"
+        "<button-visual-state><caption>Page Perf</caption></button-visual-state>"
         "</button></zone>")
-    assert _nav_button_hint(_btn_captioned) == "Operational Performance"
+    assert _nav_button_hint(_btn_captioned) == "Page Perf"
 
     _btn_icon_only = ET.fromstring(
         "<zone type-v2='dashboard-object'>"
         "<button action='tabdoc:goto-sheet window-id=\"{4BAABADC-BCDA-4384-8011-83BB92713579}\"'>"
-        "<button-visual-state><image-path>Image/WF_icon_house_rgb_F1_WF Red.png</image-path>"
+        "<button-visual-state><image-path>Image/icon_house_a.png</image-path>"
         "</button-visual-state></button></zone>")
-    assert _nav_button_hint(_btn_icon_only) == "icon 'Image/WF_icon_house_rgb_F1_WF Red.png'"
+    assert _nav_button_hint(_btn_icon_only) == "icon 'Image/icon_house_a.png'"
 
     _btn_bare = ET.fromstring(
         "<zone type-v2='dashboard-object'>"
@@ -2203,18 +2203,18 @@ if __name__ == "__main__":
           "non-navigation-button cases)")
 
     # `_build_window_guid_map` / `_nav_button_target`: the GUID lives in a nested <simple-id>
-    # child, not a <window> attribute -- real shape from 10000056_achc_WF_Payments_Insights.
+    # child, not a <window> attribute -- real shape from WorkbookJ.
     _wb_root = ET.fromstring(
         "<workbook><windows>"
-        "<window class='dashboard' name='Operational Performance Summary'>"
+        "<window class='dashboard' name='Summary Page X'>"
         "<simple-id uuid='{DC4DC9F1-B29B-444E-8D13-A35E219A28F4}' /></window>"
         "<window class='worksheet' name='Some Raw Sheet'>"
         "<simple-id uuid='{AAAAAAAA-0000-0000-0000-000000000000}' /></window>"
         "</windows></workbook>")
     _guid_map = _build_window_guid_map(_wb_root)
     assert _guid_map["{DC4DC9F1-B29B-444E-8D13-A35E219A28F4}"] == (
-        "dashboard", "Operational Performance Summary")
-    assert _nav_button_target(_btn_captioned, _guid_map) == "Operational Performance Summary"
+        "dashboard", "Summary Page X")
+    assert _nav_button_target(_btn_captioned, _guid_map) == "Summary Page X"
     # A goto-sheet button whose GUID resolves to a WORKSHEET-class window (not dashboard) has
     # no page of its own to point at in this pipeline -- must stay unresolved, not misfire.
     _btn_to_worksheet = ET.fromstring(
@@ -2222,32 +2222,32 @@ if __name__ == "__main__":
         "<button action='tabdoc:goto-sheet window-id=\"{AAAAAAAA-0000-0000-0000-000000000000}\"'>"
         "</button></zone>")
     assert _nav_button_target(_btn_to_worksheet, _guid_map) is None
-    # A GUID with no <simple-id> anywhere in the file at all (real shape: Digital Sales - Leads
-    # Dashboard has exactly one of these) must resolve to None, not raise.
+    # A GUID with no <simple-id> anywhere in the file at all (real shape: WorkbookH
+    #  has exactly one of these) must resolve to None, not raise.
     assert _nav_button_target(_btn_bare, _guid_map) is None
     assert _nav_button_target(_zone_no_button, _guid_map) is None
-    assert _nav_button_caption(_btn_captioned.find("button")) == "Operational Performance"
+    assert _nav_button_caption(_btn_captioned.find("button")) == "Page Perf"
     assert _nav_button_caption(_btn_icon_only.find("button")) is None
     print("extract.py self-test OK (_build_window_guid_map / _nav_button_target: nested "
           "simple-id resolution, worksheet-class rejection, dangling-GUID case)")
 
-    # extract_url_actions -- real corpus shapes (Client Module - US: 'VAS_Home Icon' fixed URL,
-    # 'VAS_Email Icon' a mailto: with an embedded field reference).
+    # extract_url_actions -- real corpus shapes (WorkbookK: 'Nav_Home Icon' fixed URL,
+    # 'Nav_Email Icon' a mailto: with an embedded field reference).
     _url_root = ET.fromstring(
         "<workbook><actions>"
-        "<action caption='VAS_Home Icon'>"
+        "<action caption='Nav_Home Icon'>"
         "<activation type='on-select' />"
-        "<source dashboard='VAS Revenue' type='sheet' worksheet='Home Icon' />"
-        "<link caption='Module Landing Page 1' expression='https://example.com/landing' />"
+        "<source dashboard='Dashboard V' type='sheet' worksheet='Btn C Icon' />"
+        "<link caption='Landing Page 1' expression='https://example.com/landing' />"
         "</action>"
-        "<action caption='VAS_Email Icon'>"
+        "<action caption='Nav_Email Icon'>"
         "<activation type='on-select' />"
-        "<source dashboard='VAS Revenue' type='sheet' worksheet='Email Icon' />"
+        "<source dashboard='Dashboard V' type='sheet' worksheet='Btn A Icon' />"
         "<link caption='Email 1' expression='mailto:&lt;[Calculation_1]&gt;' />"
         "</action>"
         "<action caption='Hover Tooltip Action'>"
         "<activation type='on-hover' />"
-        "<source dashboard='VAS Revenue' type='sheet' worksheet='Hover Icon' />"
+        "<source dashboard='Dashboard V' type='sheet' worksheet='Btn D Icon' />"
         "<link expression='https://example.com/hover' />"
         "</action>"
         "<action caption='Datasource-wide Action'>"
@@ -2257,19 +2257,19 @@ if __name__ == "__main__":
         "</action>"
         "<action caption='Filter Action (no link)'>"
         "<activation type='on-select' />"
-        "<source dashboard='VAS Revenue' type='sheet' worksheet='Filter Trigger' />"
+        "<source dashboard='Dashboard V' type='sheet' worksheet='Btn B Trigger' />"
         "<command command='tsc:tsl-filter' />"
         "</action>"
         "<action caption='Duplicate target'>"
         "<activation type='on-select' />"
-        "<source dashboard='VAS Revenue' type='sheet' worksheet='Home Icon' />"
+        "<source dashboard='Dashboard V' type='sheet' worksheet='Btn C Icon' />"
         "<link expression='https://example.com/should-not-win' />"
         "</action>"
         "</actions></workbook>")
     _url_actions = extract_url_actions(_url_root)
-    assert _url_actions == [{"dashboard": "VAS Revenue", "worksheet": "Home Icon",
+    assert _url_actions == [{"dashboard": "Dashboard V", "worksheet": "Btn C Icon",
                              "url": "https://example.com/landing",
-                             "caption": "Module Landing Page 1"}], (
+                             "caption": "Landing Page 1"}], (
         "extract_url_actions must keep only the fixed-address, on-select, single-sheet URL "
         "action, first-match-wins on a duplicate target, and skip on-hover / datasource-wide "
         f"/ command(non-link) / field-ref-dynamic-URL actions -- got {_url_actions}")
@@ -2278,14 +2278,14 @@ if __name__ == "__main__":
           "duplicate-target actions all correctly excluded)")
 
     # extract_action_source_worksheets -- reuses `_url_root` above. Unlike extract_url_actions,
-    # a COMMAND-only action with no <link> at all (the 'Filter Trigger' tsc:tsl-filter case) DOES
+    # a COMMAND-only action with no <link> at all (the 'Btn B Trigger' tsc:tsl-filter case) DOES
     # count here -- this function tracks "does ANY on-select action originate here", not "is
     # there a fixed-address URL to reproduce". on-hover and datasource-wide sources are still
     # excluded (no single-sheet on-select trigger to translate either way), and a duplicate
     # target worksheet collapses to one entry (it's a set).
     _src_ws = extract_action_source_worksheets(_url_root)
-    assert _src_ws == [("VAS Revenue", "Email Icon"), ("VAS Revenue", "Filter Trigger"),
-                        ("VAS Revenue", "Home Icon")], (
+    assert _src_ws == [("Dashboard V", "Btn A Icon"), ("Dashboard V", "Btn B Trigger"),
+                        ("Dashboard V", "Btn C Icon")], (
         "extract_action_source_worksheets must include every on-select single-sheet action's "
         "source worksheet regardless of command/link shape, exclude on-hover and "
         f"datasource-wide sources, and dedup -- got {_src_ws}")
@@ -2293,18 +2293,18 @@ if __name__ == "__main__":
           "action source kept same as a URL action's; on-hover / datasource-wide excluded; "
           "duplicate source worksheet deduped)")
 
-    # resolve_title: real corpus shapes from 10000056_achc_WF_Payments_Insights.
+    # resolve_title: real corpus shapes from WorkbookJ.
     _title_clean = ET.fromstring(
         "<title><formatted-text><run>Recent 3-Months</run></formatted-text></title>")
-    assert resolve_title(_title_clean, "Total Payment Volume") == "Recent 3-Months"
+    assert resolve_title(_title_clean, "Total Volume") == "Recent 3-Months"
     _title_sheetname = ET.fromstring(
         "<title><formatted-text><run>&lt;Sheet Name&gt; - Recent 12 Months</run>"
         "</formatted-text></title>")
-    assert resolve_title(_title_sheetname, "Total Payment Volume - Deb/Cred") == (
-        "Total Payment Volume - Deb/Cred - Recent 12 Months"
+    assert resolve_title(_title_sheetname, "Total Volume - A/B") == (
+        "Total Volume - A/B - Recent 12 Months"
     ), "the <Sheet Name> token must be substituted with the worksheet's own name"
     _title_param = ET.fromstring(
-        "<title><formatted-text><run>Visa Card &lt;[Parameters].[Parameter 1]&gt;</run>"
+        "<title><formatted-text><run>Sample Card &lt;[Parameters].[Parameter 1]&gt;</run>"
         "</formatted-text></title>")
     assert resolve_title(_title_param, "Some Sheet") is None, (
         "a title with an unresolvable dynamic token (parameter/field-value reference) must "
@@ -2335,13 +2335,13 @@ if __name__ == "__main__":
     print("extract.py self-test OK (extract_dashboards: show_title default/override, "
           "filter_mode captured)")
 
-    # parse_formatted_text: real corpus shapes (achc) -- single-run bold caption, multi-run
+    # parse_formatted_text: real corpus shapes (WorkbookJ) -- single-run bold caption, multi-run
     # zone (bold + plain), and alignment taken from the first run that declares one.
     _ft_single = ET.fromstring(
         "<formatted-text><run bold='true' fontalignment='1' fontcolor='#ffffff' "
-        "fontsize='18' fontname='Segoe UI Semibold'>Card Sales Overview</run></formatted-text>")
+        "fontsize='18' fontname='Segoe UI Semibold'>Item Sales Overview</run></formatted-text>")
     _runs, _align = parse_formatted_text(_ft_single)
-    assert _runs == [{"text": "Card Sales Overview", "bold": True, "italic": False,
+    assert _runs == [{"text": "Item Sales Overview", "bold": True, "italic": False,
                        "color": "#ffffff", "fontsize": "18", "fontname": "Segoe UI Semibold"}]
     assert _align == "center"
 
@@ -2365,7 +2365,7 @@ if __name__ == "__main__":
 
     # _label_font: base-level datalabel font-size/font-family kept, a field-scoped conditional-
     # format override on the SAME style-rule excluded, first-rule-wins within a scope, None when
-    # neither attribute is present anywhere -- real corpus shape (GCLM).
+    # neither attribute is present anywhere -- real corpus shape (WorkbookA).
     _ws_label_font = ET.fromstring(
         "<worksheet><table><panes><pane><style>"
         "<style-rule element='datalabel'>"
@@ -2415,7 +2415,7 @@ if __name__ == "__main__":
           "excluded, worksheet-level fallback, None when absent)")
 
     # classify_filter: a single-member filter whose value is Tableau's own "(All)"
-    # show-everything sentinel restricts nothing -- real corpus shape (GCLM), confirmed against
+    # show-everything sentinel restricts nothing -- real corpus shape (WorkbookA), confirmed against
     # the field's own embedded extract to have zero rows literally valued "(All)". A real member
     # value that happens to spell something else entirely is untouched (no regression), and an
     # ACTUAL "(All)"-valued member reached via a `ui-action-filter` marker is still caught by the
@@ -2441,7 +2441,7 @@ if __name__ == "__main__":
     print("extract.py self-test OK (classify_filter: '(All)' sentinel restricts nothing, "
           "real member value unaffected)")
 
-    # parse_zone_style: real corpus shape (achc) -- meaningful background-color kept, a
+    # parse_zone_style: real corpus shape (WorkbookJ) -- meaningful background-color kept, a
     # default/transparent one dropped so a zone Tableau never painted stays unpainted.
     _zone_bg = ET.fromstring(
         "<zone><zone-style>"
@@ -2464,7 +2464,7 @@ if __name__ == "__main__":
     print("extract.py self-test OK (parse_zone_style: real background kept, "
           "default/transparent dropped)")
 
-    # translate_number_format: real corpus value (achc, 58 fields) is the only pattern
+    # translate_number_format: real corpus value (WorkbookJ, 58 fields) is the only pattern
     # confidently translated; anything else declines rather than guesses.
     assert translate_number_format("p0.00%") == "0.00%"
     assert translate_number_format("p0%") == "0%"
@@ -2481,28 +2481,28 @@ if __name__ == "__main__":
 
     # Two DIFFERENT standalone .tds roots (real shape: no name, no caption, only
     # formatted-name) must never collapse to the same tableau_name/caption. Regression for
-    # the VRM Compliance Dashboard bug: both tds-resolved "Data" tables got tableau_name=None,
+    # the WB Sample Dashboard bug: both tds-resolved "Data" tables got tableau_name=None,
     # caption="Data" -- an identical allocation key -- so tmdl.py's allocate() silently
     # returned the FIRST table's already-allocated pbi name for the second, and the second's
     # emission overwrote the first's TMDL file outright with no residue entry.
     _tds_a = ET.fromstring(
-        '<datasource formatted-name="MSD_Billing_Details" inline="true" version="18.1">'
-        '<connection class="hyper" dbname="Data/Extracts/MSD_Billing_Details.hyper" />'
+        '<datasource formatted-name="SRC_Details_A" inline="true" version="18.1">'
+        '<connection class="hyper" dbname="Data/Extracts/SRC_Details_A.hyper" />'
         '</datasource>')
     _tds_b = ET.fromstring(
-        '<datasource formatted-name="MSD_Case_Details_Compliance" inline="true" version="18.1">'
-        '<connection class="hyper" dbname="Data/Extracts/MSD_Case_Details_Compliance.hyper" />'
+        '<datasource formatted-name="SRC_Details_B" inline="true" version="18.1">'
+        '<connection class="hyper" dbname="Data/Extracts/SRC_Details_B.hyper" />'
         '</datasource>')
-    _rec_a = extract_datasource(_tds_a, None, "tds:MSD_Billing_Details.tdsx")
-    _rec_b = extract_datasource(_tds_b, None, "tds:MSD_Case_Details_Compliance.tdsx")
+    _rec_a = extract_datasource(_tds_a, None, "tds:SRC_Details_A.tdsx")
+    _rec_b = extract_datasource(_tds_b, None, "tds:SRC_Details_B.tdsx")
     assert _rec_a["tableau_name"] is not None, (
         "a standalone .tds root with no name/caption must fall back to formatted-name, "
         f"got tableau_name={_rec_a['tableau_name']!r}")
     assert _rec_a["tableau_name"] != _rec_b["tableau_name"], (
         "two DIFFERENT tds-resolved tables must never share one tableau_name -- got "
         f"{_rec_a['tableau_name']!r} for both")
-    assert _rec_a["caption"] == "MSD_Billing_Details" and _rec_b["caption"] == (
-        "MSD_Case_Details_Compliance"), (_rec_a["caption"], _rec_b["caption"])
+    assert _rec_a["caption"] == "SRC_Details_A" and _rec_b["caption"] == (
+        "SRC_Details_B"), (_rec_a["caption"], _rec_b["caption"])
     print("extract.py self-test OK (formatted-name fallback disambiguates tds-resolved tables)")
 
     # classify_formula must match a table-calc/LOD FUNCTION CALL, never a bracketed field NAME
@@ -2526,7 +2526,7 @@ if __name__ == "__main__":
         _got = classify_formula(_f)
         assert _got == _want, f"classify_formula({_f!r}) -> {_got!r}, want {_want!r}"
     _classify_false = [
-        # Real corpus shape (NGPO Dashboard): a field NAME containing "Count (" collided with
+        # Real corpus shape (WorkbookC): a field NAME containing "Count (" collided with
         # \bCOUNT\s*\( in dax.is_aggregate; the same bracket-unstripped pattern exists here for
         # TABLECALC_RE's RANK/FIRST/LAST/TOTAL words.
         ("[Rank (Overall)] + [y]", "scalar"),
@@ -2544,7 +2544,7 @@ if __name__ == "__main__":
     # A <metadata-record> with class='measure' (Tableau's own default-aggregation-role guess for
     # this physical column, from SQL introspection) describes a REAL column just as much as
     # class='column' does, and one with NO <column> override at all is only ever visible through
-    # its metadata-record. Regression for Prevent Dashboard's vwOI_Insights: 2 real columns were
+    # its metadata-record. Regression for WorkbookB Dashboard's vw_facts: 2 real columns were
     # class='measure' with no override, so they never reached rec["columns"] or object_id_of,
     # starving 2 of 13 object-graph relationships of a real key attribution and collapsing all
     # 14 objects into 1 flattened table via split_federated_datasource's all-or-nothing check.
@@ -2592,71 +2592,71 @@ if __name__ == "__main__":
     print("extract.py self-test OK (metadata-record backfill includes class='measure', "
           "not just class='column')")
 
-    # Real corpus bug (GCLM, see extract_datasource's own docstring on `name_map`): a field with
+    # Real corpus bug (WorkbookA, see extract_datasource's own docstring on `name_map`): a field with
     # NO <column> tag in THIS datasource (metadata-record only) must still get the SAME caption
     # every filter/shelf reference to it resolves to workbook-wide, via name_map -- not the bare
     # internal name verbatim. Two datasources sharing a raw field name, only one of which gives it
-    # an explicit caption, is exactly the shape that broke Activation's "For View" filters.
+    # an explicit caption, is exactly the shape that broke Beta's "View Flag" filters.
     _nm_ds = ET.fromstring(
         '<datasource name="federated.0x2" caption="DS2">'
         '<connection class="hyper"><relation table="[s].[t]" type="table" />'
         '<metadata-records>'
-        '<metadata-record class="column"><remote-name>for_view</remote-name>'
-        '<local-name>[for_view]</local-name></metadata-record>'
+        '<metadata-record class="column"><remote-name>view_flag</remote-name>'
+        '<local-name>[view_flag]</local-name></metadata-record>'
         '<metadata-record class="column"><remote-name>truly_unnamed</remote-name>'
         '<local-name>[truly_unnamed]</local-name></metadata-record>'
         '</metadata-records>'
         '</connection>'
         '</datasource>')
-    _nm_map = {"[for_view]": "For View"}  # as if some OTHER datasource gave it this caption
+    _nm_map = {"[view_flag]": "View Flag"}  # as if some OTHER datasource gave it this caption
     _nm_rec = extract_datasource(_nm_ds, None, "test", name_map=_nm_map)
     _nm_cols = {c["source_column"]: c for c in _nm_rec["columns"]}
-    assert _nm_cols["for_view"]["name"] == "For View", (
+    assert _nm_cols["view_flag"]["name"] == "View Flag", (
         "a metadata-record-only column must borrow name_map's workbook-wide caption for its own "
         f"raw name, so it matches what filters/shelves resolve to -- got "
-        f"{_nm_cols['for_view']['name']!r}")
+        f"{_nm_cols['view_flag']['name']!r}")
     assert _nm_cols["truly_unnamed"]["name"] == "truly_unnamed", (
         "a raw name with NO entry anywhere in name_map must still fall back to itself verbatim, "
         f"not raise or disappear -- got {_nm_cols['truly_unnamed']['name']!r}")
     _nm_rec_nomap = extract_datasource(_nm_ds, None, "test")
     _nm_cols_nomap = {c["source_column"]: c for c in _nm_rec_nomap["columns"]}
-    assert _nm_cols_nomap["for_view"]["name"] == "for_view", (
+    assert _nm_cols_nomap["view_flag"]["name"] == "view_flag", (
         "no name_map at all (every existing self-test call site that omits it) must be unchanged "
-        f"-- verbatim raw name, not a crash -- got {_nm_cols_nomap['for_view']['name']!r}")
+        f"-- verbatim raw name, not a crash -- got {_nm_cols_nomap['view_flag']['name']!r}")
     print("extract.py self-test OK (metadata-record-only backfill borrows name_map's "
           "workbook-wide caption instead of the bare internal name)")
 
-    # Companion real-corpus bug (GCLM): the SAME hazard one level up, for an EXPLICIT <column> tag
+    # Companion real-corpus bug (WorkbookA): the SAME hazard one level up, for an EXPLICIT <column> tag
     # that simply has no caption of ITS OWN -- not just the metadata-record-only backfill path
-    # above. Acquisition's own `[prod_id]` column has a real <column> tag with no `caption`
-    # attribute at all; Key Highlights' sibling datasource captions its OWN `[prod_id]` as
-    # "Prod Id". Left bare, Acquisition's column stayed named "prod_id" (raw, lowercase) while
-    # every worksheet field well captioned "Prod Id" resolved globally to Key Highlights' column
-    # instead -- an unrelated table with no working relationship to Acquisition at that grain, so
-    # "2.3 Issuer YoY Growth"/"2.3 Market YoY Growth" rendered the identical value for every
+    # above. Alpha's own `[item_id]` column has a real <column> tag with no `caption`
+    # attribute at all; Highlights Page' sibling datasource captions its OWN `[item_id]` as
+    # "Item Id". Left bare, Alpha's column stayed named "item_id" (raw, lowercase) while
+    # every worksheet field well captioned "Item Id" resolved globally to Highlights Page' column
+    # instead -- an unrelated table with no working relationship to Alpha at that grain, so
+    # "Sheet 5 - Growth Rate A"/"Sheet 5 - Alt YoY Growth" rendered the identical value for every
     # category (confirmed live: SUMMARIZECOLUMNS by the wrongly-bound column returned the exact
-    # same number for all 13 real Prod Id values).
+    # same number for all 13 real Item Id values).
     _ec_ds = ET.fromstring(
         '<datasource name="federated.0x3" caption="DS3">'
         '<connection class="hyper"><relation table="[s].[t]" type="table" /></connection>'
-        '<column name="[prod_id]" datatype="string" role="dimension" />'
+        '<column name="[item_id]" datatype="string" role="dimension" />'
         '<column name="[other]" caption="Other" datatype="string" role="dimension" />'
         '</datasource>')
-    _ec_map = {"[prod_id]": "Prod Id"}  # as if Key Highlights' own captioned column set this
+    _ec_map = {"[item_id]": "Item Id"}  # as if Highlights Page' own captioned column set this
     _ec_rec = extract_datasource(_ec_ds, None, "test", name_map=_ec_map)
     _ec_cols = {c["source_column"]: c for c in _ec_rec["columns"]}
-    assert _ec_cols["prod_id"]["name"] == "Prod Id", (
+    assert _ec_cols["item_id"]["name"] == "Item Id", (
         "an explicit <column> tag with NO caption of its own must still borrow name_map's "
         f"workbook-wide caption, same as the metadata-record-only path above -- got "
-        f"{_ec_cols['prod_id']['name']!r}")
+        f"{_ec_cols['item_id']['name']!r}")
     assert _ec_cols["other"]["name"] == "Other", (
         "a <column> tag that already HAS its own caption must keep it unchanged, never "
         f"overridden by name_map -- got {_ec_cols['other']['name']!r}")
     _ec_rec_nomap = extract_datasource(_ec_ds, None, "test")
     _ec_cols_nomap = {c["source_column"]: c for c in _ec_rec_nomap["columns"]}
-    assert _ec_cols_nomap["prod_id"]["name"] == "prod_id", (
+    assert _ec_cols_nomap["item_id"]["name"] == "item_id", (
         "no name_map at all (every existing self-test call site that omits it) must be "
-        f"unchanged -- verbatim raw name -- got {_ec_cols_nomap['prod_id']['name']!r}")
+        f"unchanged -- verbatim raw name -- got {_ec_cols_nomap['item_id']['name']!r}")
     print("extract.py self-test OK (an explicit <column> tag with no caption of its own also "
           "borrows name_map's workbook-wide caption, not just the metadata-record-only backfill)")
 
@@ -2826,62 +2826,62 @@ if __name__ == "__main__":
     # (ordering-type='Rows', no field), but Tableau saves a SECOND, richer copy per worksheet
     # usage under <worksheet><table><view><datasource-dependencies><column-instance
     # column='[id]'><table-calc ordering-field=... ordering-type='Field' />. Real corpus example
-    # (Digital Sales - Leads Dashboard's `Rank - Text`, addressed by `lead_owner` in worksheet
-    # `Leads Team View`) -- worksheet_tc_addressing() must resolve that field via name_map, and
+    # (WorkbookH's `Rank - Text`, addressed by `owner_name` in worksheet
+    # `Team View`) -- worksheet_tc_addressing() must resolve that field via name_map, and
     # a bare ordering-type (no 'Field'/no ordering-field) must be skipped, not misread as a hit.
     _ws_tc_root = ET.fromstring(
         "<workbook><worksheets>"
-        "<worksheet name='Leads Team View'><table><view><datasource-dependencies "
+        "<worksheet name='Team View'><table><view><datasource-dependencies "
         "datasource='federated.abc'>"
         "<column-instance column='[Calculation_1]' name='n1'>"
-        "<table-calc ordering-field='[federated.abc].[lead_owner]' ordering-type='Field' />"
+        "<table-calc ordering-field='[federated.abc].[owner_name]' ordering-type='Field' />"
         "</column-instance>"
         "<column-instance column='[Calculation_2]' name='n2'>"
         "<table-calc ordering-type='Rows' />"
         "</column-instance>"
         "</datasource-dependencies></view></table></worksheet>"
         "</worksheets></workbook>")
-    _ws_tc = worksheet_tc_addressing(_ws_tc_root, {"[lead_owner]": "Lead Owner"})
-    assert _ws_tc == {"Calculation_1": [{"field": "Lead Owner", "worksheet": "Leads Team View"}]}, _ws_tc
+    _ws_tc = worksheet_tc_addressing(_ws_tc_root, {"[owner_name]": "Owner Name"})
+    assert _ws_tc == {"Calculation_1": [{"field": "Owner Name", "worksheet": "Team View"}]}, _ws_tc
     print("extract.py self-test OK (worksheet-saved table-calc addressing resolved, generic "
           "ordering-type skipped)")
 
     # A single <column-instance> can carry MULTIPLE sibling <table-calc> children -- Tableau's
-    # shape when a shelf-placed calc (here 'Y Axis Position', column-instance id Calculation_3)
-    # references OTHER calcs that are never placed on a shelf themselves (AANR test / Normalized
-    # AANR, real corpus example). The column-instance's OWN addressing has no `field=`; each
+    # shape when a shelf-placed calc (here 'Axis Position Calc', column-instance id Calculation_3)
+    # references OTHER calcs that are never placed on a shelf themselves (Sheet C test / Normalized
+    # Sheet C, real corpus example). The column-instance's OWN addressing has no `field=`; each
     # sibling calc's entry names its target via `field='[ds].[Calculation_X]'`, distinct from the
     # column-instance's own `column` id.
     _ws_tc_root2 = ET.fromstring(
         "<workbook><worksheets>"
-        "<worksheet name='Leads Team View'><table><view><datasource-dependencies "
+        "<worksheet name='Team View'><table><view><datasource-dependencies "
         "datasource='federated.abc'>"
         "<column-instance column='[Calculation_3]' name='n3'>"
-        "<table-calc ordering-field='[federated.abc].[Lead Stage]' ordering-type='Field' />"
+        "<table-calc ordering-field='[federated.abc].[Stage Value]' ordering-type='Field' />"
         "<table-calc field='[federated.abc].[Calculation_4]' "
-        "ordering-field='[federated.abc].[Lead Stage]' ordering-type='Field' />"
+        "ordering-field='[federated.abc].[Stage Value]' ordering-type='Field' />"
         "<table-calc field='[federated.abc].[Calculation_5]' "
-        "ordering-field='[federated.abc].[Lead Stage]' ordering-type='Field' />"
+        "ordering-field='[federated.abc].[Stage Value]' ordering-type='Field' />"
         "</column-instance>"
         "</datasource-dependencies></view></table></worksheet>"
         "</worksheets></workbook>")
-    _ws_tc2 = worksheet_tc_addressing(_ws_tc_root2, {"[Lead Stage]": "Lead Stage"})
+    _ws_tc2 = worksheet_tc_addressing(_ws_tc_root2, {"[Stage Value]": "Stage Value"})
     assert set(_ws_tc2) == {"Calculation_3", "Calculation_4", "Calculation_5"}, _ws_tc2
-    assert all(hits == [{"field": "Lead Stage", "worksheet": "Leads Team View"}]
+    assert all(hits == [{"field": "Stage Value", "worksheet": "Team View"}]
                for hits in _ws_tc2.values()), _ws_tc2
     print("extract.py self-test OK (sibling table-calc entries with a 'field=' target resolved "
           "to the RIGHT calc, not the column-instance's own id)")
 
     # A shelf with 2+ stacked fields is written as an arbitrarily-deep nested `(A / (B / C))`
-    # expression -- real corpus example: Opportunity List nests 10+ fields this way. The OLD
+    # expression -- real corpus example: Sheet List A nests 10+ fields this way. The OLD
     # code split on the literal substring "]/[" (no spaces, no parens), which never matched this
     # real shape and silently kept only whatever `parse_fieldref` happened to match first,
-    # dropping every field after it -- e.g. a real "Lead Business Unit" / "Product Portfolio
-    # Rollup" two-level row hierarchy collapsed to just "Lead Business Unit".
-    _shelf_name_map = {"[lead_business_unit]": "Lead Business Unit",
-                        "[product_portfolio_rollup]": "Product Portfolio Rollup"}
+    # dropping every field after it -- e.g. a real "Unit Name" / "Rollup Sheet
+    # " two-level row hierarchy collapsed to just "Unit Name".
+    _shelf_name_map = {"[lead_business_unit]": "Unit Name",
+                        "[product_portfolio_rollup]": "Rollup Sheet"}
     _shelf_ws_root = ET.fromstring(
-        "<workbook><worksheets><worksheet name='Lead Business Unit'>"
+        "<workbook><worksheets><worksheet name='Unit Name'>"
         "<table><view>"
         "<rows onTop='true' total='true'>(["
         "federated.x].[none:lead_business_unit:nk] / [federated.x]"
@@ -2891,7 +2891,7 @@ if __name__ == "__main__":
         "</worksheet></worksheets></workbook>")
     _shelf_ws = extract_worksheets(_shelf_ws_root, _shelf_name_map)[0]
     assert [r["field"] for r in _shelf_ws["shelves"]["rows"]] == [
-        "Lead Business Unit", "Product Portfolio Rollup"], _shelf_ws["shelves"]["rows"]
+        "Unit Name", "Rollup Sheet"], _shelf_ws["shelves"]["rows"]
     assert _shelf_ws["shelves"]["rows_total"] is True, _shelf_ws["shelves"]
     # No `[ds].[field]`-shaped match exists in "[ds].[:Measure Names]" -- falls back to the
     # pre-existing single-ref parse unchanged (same raw, partially-stripped string it always
@@ -2902,7 +2902,7 @@ if __name__ == "__main__":
     print("extract.py self-test OK (multi-field nested shelf parsed as a real hierarchy, not "
           "collapsed to its first field)")
 
-    # 3-level nesting (real corpus example: Completed Meeting Breakout View) and no total='true'
+    # 3-level nesting (real corpus example: Sheet View B) and no total='true'
     # attribute at all (also that same worksheet) must both work -- deepest nesting and the
     # boolean default (False, not a crash) are the two edges the two-level case above can't catch.
     _shelf_ws_root2 = ET.fromstring(
@@ -2921,28 +2921,28 @@ if __name__ == "__main__":
     # <table-calc>'s `level-break` attribute ("Restart every: <field>" in Tableau's own "Edit
     # Table Calculation" dialog) is the partition boundary a RANK-family calc resets at -- tmdl.py
     # needs it, resolved to a plain caption, to translate one via RANKX/ALLEXCEPT. Ground truth:
-    # NGPO Dashboard New - AP Version (MSC)'s `Rank - Topic Area` =
+    # WorkbookC's `Rank - Group Area` =
     # `RANK_UNIQUE(zn([Calculation_...]),'desc')`, `level-break="[federated.HASH].[topic_area]"`.
     _tc = ET.fromstring(
         '<calculation class="tablecalc" ordering-type="Field" '
         'level-break="[federated.HASH].[topic_area]">'
-        '<order field="[federated.HASH].[issuer_name]" />'
+        '<order field="[federated.HASH].[group_name]" />'
         '</calculation>')
     _spec = table_calc_spec(_tc)
     assert _spec["level_break"] == "[federated.HASH].[topic_area]", _spec
     assert _spec.get("level_break_field") is None, (
         "level_break_field must not be resolved before name_map exists -- that happens in the "
         f"same extract()-time post-pass as order_fields, not inside table_calc_spec: {_spec!r}")
-    _name_map = {"[topic_area]": "Topic Area"}
+    _name_map = {"[topic_area]": "Group Area"}
     _resolved_cap, _agg = parse_fieldref(_spec["level_break"], _name_map)
-    assert _resolved_cap == "Topic Area", _resolved_cap
+    assert _resolved_cap == "Group Area", _resolved_cap
     _spec_no_break = table_calc_spec(ET.fromstring('<calculation class="tablecalc" />'))
     assert _spec_no_break["level_break"] is None and _spec_no_break.get("level_break_field") is \
         None, "a table-calc with no level-break attribute must resolve to None, never guessed"
     print("extract.py self-test OK (table-calc level-break resolves to a plain caption)")
 
     # The 4-segment shape a quick-table-calc PILL writes directly onto a shelf
-    # (`[agg:underlying-agg:FIELD:suffix]`, e.g. Prevent Dashboard's real "1W - Slice By" cols
+    # (`[agg:underlying-agg:FIELD:suffix]`, e.g. WorkbookB Dashboard's real "Sheet 1 - Selector" cols
     # ref) must resolve FIELD as the real field, not the underlying-agg placeholder -- the exact
     # bug `_fieldref_parts` fixes. No existing fixture above exercises this shape, which is why it
     # was never caught.
@@ -2955,10 +2955,10 @@ if __name__ == "__main__":
     # Every existing 3-segment/1-segment shape stays unaffected -- re-check a representative one
     # of each here rather than trusting the regex change by inspection alone.
     _cap3, _agg3 = parse_fieldref("[federated.x].[none:lead_business_unit:nk]",
-                                   {"[lead_business_unit]": "Lead Business Unit"})
-    assert (_cap3, _agg3) == ("Lead Business Unit", None), (_cap3, _agg3)
-    _cap1, _agg1 = parse_fieldref("[federated.abc].[lead_owner]", {})
-    assert (_cap1, _agg1) == ("lead_owner", None), (_cap1, _agg1)
+                                   {"[lead_business_unit]": "Unit Name"})
+    assert (_cap3, _agg3) == ("Unit Name", None), (_cap3, _agg3)
+    _cap1, _agg1 = parse_fieldref("[federated.abc].[owner_name]", {})
+    assert (_cap1, _agg1) == ("owner_name", None), (_cap1, _agg1)
     print("extract.py self-test OK (4-segment quick-table-calc shelf ref resolves the REAL "
           "field, not the underlying-agg placeholder; 3-segment/1-segment refs unchanged)")
 
@@ -2981,12 +2981,12 @@ if __name__ == "__main__":
     # a partition-scope index Tableau appends when a pill is scoped (e.g. :4 means "Table across").
     # Old code: parts[-2] on ["sum","FIELD","qk","4"] picks "qk", not FIELD.
     # Fixed code: strip trailing digit-only segments first, then parts[-2].
-    # Real corpus case: GCLM Usage_split cols ref `[pcto:sum:Calculation_993606723128832005:qk:4]`
+    # Real corpus case: WorkbookA Split_sheet cols ref `[pcto:sum:Calculation_211015251426935556:qk:4]`
     # was yielding field="qk", so the pipeline couldn't identify the underlying measure at all.
     _pcto5_cap, _pcto5_agg = parse_fieldref(
-        "[federated.x].[pcto:sum:Calculation_993606723128832005:qk:4]",
-        {"[Calculation_993606723128832005]": "Issr Vol Txn Cnt Cy"})
-    assert (_pcto5_cap, _pcto5_agg) == ("Issr Vol Txn Cnt Cy", "pcto"), (
+        "[federated.x].[pcto:sum:Calculation_211015251426935556:qk:4]",
+        {"[Calculation_211015251426935556]": "Grp Vol Txn Cnt Cy"})
+    assert (_pcto5_cap, _pcto5_agg) == ("Grp Vol Txn Cnt Cy", "pcto"), (
         f"5-segment pcto:sum:FIELD:qk:N must extract FIELD, not 'qk' -- "
         f"got ({_pcto5_cap!r}, {_pcto5_agg!r})")
     # Existing 4-segment shape must remain unaffected by the strip-digits loop.
@@ -2997,9 +2997,9 @@ if __name__ == "__main__":
     print("extract.py self-test OK (RC-A: 5-segment pcto:sum:FIELD:qk:N correctly extracts "
           "FIELD instead of 'qk'; 4-segment shape unchanged)")
 
-    # RC-B: worksheet-local <column> thin-wrapper alias. GCLM's Usage_Metrics_SPAC_header (and 5
-    # sibling worksheets) defines [Calculation_1136595959878615049] with formula
-    # ([Calculation_868913308838137858]) -- a bare pass-through to the real "SPAC Difference"
+    # RC-B: worksheet-local <column> thin-wrapper alias. WorkbookA's Metrics_header (and 5
+    # sibling worksheets) defines [Calculation_6662162725511136532] with formula
+    # ([Calculation_291264244239166360]) -- a bare pass-through to the real "Diff Metric A"
     # measure. Before this fix, name_map had no entry for the wrapper id, so any shelf reference
     # to it resolved to a bare raw id string and _resolve_field returned None.
     # This test verifies that extract()'s RC-B extension adds wrapper -> real caption to name_map.
@@ -3007,16 +3007,16 @@ if __name__ == "__main__":
         "<workbook>"
         "<datasources>"
         "<datasource name='federated.0x1' caption='DS'>"
-        "<column name='[Calculation_868913308838137858]' caption='SPAC Difference' />"
+        "<column name='[Calculation_291264244239166360]' caption='Diff Metric A' />"
         "</datasource>"
         "</datasources>"
-        "<worksheets><worksheet name='Usage_Metrics_SPAC_header'><table><view>"
+        "<worksheets><worksheet name='Metrics_header'><table><view>"
         "<datasource-dependencies datasource='federated.0x1'>"
-        "<column name='[Calculation_1136595959878615049]' caption='([SPAC Difference])'>"
-        "<calculation formula='([Calculation_868913308838137858])' />"
+        "<column name='[Calculation_6662162725511136532]' caption='([Diff Metric A])'>"
+        "<calculation formula='([Calculation_291264244239166360])' />"
         "</column>"
         "<column name='[Complex_Calc]' caption='Complex'>"
-        "<calculation formula='[Calculation_868913308838137858] * 2' />"
+        "<calculation formula='[Calculation_291264244239166360] * 2' />"
         "</column>"
         "</datasource-dependencies>"
         "</view></table></worksheet></worksheets>"
@@ -3038,12 +3038,12 @@ if __name__ == "__main__":
                 _real_cap2 = _w_nm.get(f"[{_wm2.group(1)}]")
                 if _real_cap2:
                     _w_nm[_cname] = _real_cap2
-    assert _w_nm.get("[Calculation_1136595959878615049]") == "SPAC Difference", (
+    assert _w_nm.get("[Calculation_6662162725511136532]") == "Diff Metric A", (
         "worksheet-local thin-wrapper alias must resolve to its real field's caption -- "
-        f"got {_w_nm.get('[Calculation_1136595959878615049]')!r}")
-    assert _w_nm.get("[Calculation_868913308838137858]") == "SPAC Difference", (
+        f"got {_w_nm.get('[Calculation_6662162725511136532]')!r}")
+    assert _w_nm.get("[Calculation_291264244239166360]") == "Diff Metric A", (
         f"real field caption must remain unchanged -- got "
-        f"{_w_nm.get('[Calculation_868913308838137858]')!r}")
+        f"{_w_nm.get('[Calculation_291264244239166360]')!r}")
     assert "[Complex_Calc]" not in _w_nm, (
         "a non-wrapper formula (not bare ([id])) must NOT be aliased -- "
         f"got {_w_nm.get('[Complex_Calc]')!r}")
@@ -3054,7 +3054,7 @@ if __name__ == "__main__":
     # calc attached directly to a shelf pill's OWN column-instance must surface as THAT shelf
     # ref's `table_calc` metadata -- and a sibling `field=`-override `<table-calc>` (RANK's own
     # addressing shape) on the SAME column-instance must be correctly skipped by this function,
-    # not double-counted. Real corpus shape (Prevent Dashboard's "3B - Days to CE Eligible"):
+    # not double-counted. Real corpus shape (WorkbookB Dashboard's "Sheet 3 - Days Eligible"):
     # TWO column-instances share the IDENTICAL `column='[Calculation_X]'` but differ in `name=`
     # -- one plain (`name='[sum:Calculation_X:qk]'`, actually on the Rows shelf, no table-calc)
     # and one Percent-of-Total-tagged (`name='[pcto:sum:Calculation_X:qk]'`, used elsewhere in

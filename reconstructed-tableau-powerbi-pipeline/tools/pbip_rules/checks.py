@@ -540,7 +540,7 @@ def check_calc_dependency_cycles(f, project: str, proj: M.Project) -> None:
         graph[node] = deps
 
     # Iterative depth-first search with an explicit colour map; recursion would overflow on
-    # the deeper corpus models (Prevent Dashboard carries 262 calculated objects).
+    # the deeper corpus models (WorkbookB Dashboard carries 262 calculated objects).
     WHITE, GREY, BLACK = 0, 1, 2
     colour: dict[tuple[str, str], int] = {}
     reported: set[frozenset] = set()
@@ -680,18 +680,18 @@ def check_measure_bare_column(f, project: str, proj: M.Project) -> None:
     CALCULATE. Flagging those would swamp the output. A measure whose entire body is one
     column reference needs no context analysis and is always wrong.
 
-    Considered widening this, after the NGPO `Issuer - PV` bug (see SKILL.md's bug table --
+    Considered widening this, after the WorkbookC `Group - PV` bug (see SKILL.md's bug table --
     `col * col` with zero aggregation anywhere is the same illegal shape, just not textually
     ONE bare column) to: flag a measure with ZERO aggregate/iterator calls anywhere in its body
     AND at least one bare qualified column reference. Tested empirically against the real
     6-workbook reference corpus before deciding, rather than reasoning about it in the
-    abstract: a prototype of exactly this rule flagged 75 measures in ONE workbook alone (AP
-    Product Portfolio Management Dashboard) -- almost entirely legitimate Tableau
+    abstract: a prototype of exactly this rule flagged 75 measures in ONE workbook alone (WorkbookG
+    ) -- almost entirely legitimate Tableau
     "growth-arrow"/gap-style measures like `IF('T'[x growth] > 0, "up", BLANK())`, which are
     NOT unconditionally broken the way a pure `'T'[Col]` body is: whether they resolve in
     Desktop depends on the report visual's own grouping granularity (a table/matrix grouped
     tightly enough to filter the table to one row makes the bare reference resolve; a coarser
-    grouping errors the same way `Issuer - PV` did) -- exactly the row-context ambiguity this
+    grouping errors the same way `Group - PV` did) -- exactly the row-context ambiguity this
     function's own docstring already says can't be decided statically. That count is the same
     order of magnitude as the ~450-false-positive prototype `tmdl.py`'s SKILL.md bug table
     already records rejecting for the same reason. Decision: NOT adding this as a POST_EMIT
@@ -838,7 +838,7 @@ _KNOWN_VISUAL_TYPES = set(_ROLE_LIMITS) | _DATALESS_VISUALS | {
     # "stackedColumnChart"/"stackedBarChart" deliberately absent: Power BI has no visual
     # registered under either name -- the plain "columnChart"/"barChart" ARE the stacked
     # variants, "clustered*" is the side-by-side one. A real Desktop file confirmed this the
-    # hard way (LAC Pedidosya Transaction Profile, CustomVisualNotFound on every color-split
+    # hard way (WorkbookI, CustomVisualNotFound on every color-split
     # bar/column chart) after pbir.py emitted the never-registered name -- keeping it out of
     # this whitelist is what would have caught that before it ever reached Desktop.
     "tableEx", "pivotTable", "matrix", "columnChart", "barChart", "clusteredColumnChart",
@@ -1013,8 +1013,8 @@ def check_visual_filter_relationship_reachable(f, project: str, proj: M.Project)
 
     RPT-FILTER-02 (`check_visual_filter_targets`) only checks that the filter's field EXISTS in
     the model. It says nothing about whether Desktop can relate that table to what the visual is
-    actually querying -- confirmed as a real, separate failure on NGPO Dashboard New - AP Version
-    (MSC): "Can't determine relationships between the fields... InvalidUnconstrainedJoin", on a
+    actually querying -- confirmed as a real, separate failure on WorkbookC
+    : "Can't determine relationships between the fields... InvalidUnconstrainedJoin", on a
     filter whose own field existed fine (RPT-FILTER-02 clean) but sat on a table with no
     relationship path to the visual's query table (Tableau data blending, no stored key).
 
@@ -1054,8 +1054,8 @@ def check_visual_query_relationship_reachable(f, project: str, proj: M.Project) 
 
     A Tableau data blend can put fields from two federated datasources directly on the SAME
     worksheet's Rows/Cols shelves, with no filter involved at all -- confirmed as a real, DISTINCT
-    Desktop failure from RPT-FILTER-04's (which only ever looked at `filterConfig`) on NGPO
-    Dashboard New - AP Version (MSC), "Level 2 Analysis"/"Level 4 Analysis" pages: a lineChart
+    Desktop failure from RPT-FILTER-04's (which only ever looked at `filterConfig`) on WorkbookC
+    , "Page L2"/"Page L4" pages: a lineChart
     whose Category came from one federated table and whose Y came from another, `relationships.
     tmdl` empty, Desktop: "Can't determine relationships between the fields... Underlying Error:
     InvalidUnconstrainedJoin". `build-tableau-pbip` now declines this shape at the generator

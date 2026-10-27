@@ -75,7 +75,7 @@ way if someone wants one).
 ---
 
 ### A hyper-sourced column author-overridden to `datatype='string'` on a DOUBLE got the wrong string form
-**Symptom:** a worksheet filter on a bare member value (e.g. `qtr_rnk_flg = "1"`) matches ZERO
+**Symptom:** a worksheet filter on a bare member value (e.g. `per_rnk_flg = "1"`) matches ZERO
 rows even though rows with the real underlying value genuinely exist — every card/table gated by
 that filter goes blank, with no error anywhere.
 
@@ -86,8 +86,8 @@ Tableau's type inference. When Tableau casts a double to a string under this ove
 a trailing `.0` for a whole number (`1.0` → `"1"`); a worksheet's saved filter member (`member=
 "1"`) is captured in that trimmed form. `generate_dummy_data.py`'s `coerce_hyper_value()`,
 sampling the same raw double for its `mtype == "text"` branch, did a naive `str(value)` instead
-— `"1.0"`, never equal to the filter's `"1"`. Real corpus (GCLM): Activation's
-`qtr_rnk_flg`, 0 of 9 real rows with the underlying value `1.0` ever matched `qtr_rnk_flg="1"`
+— `"1.0"`, never equal to the filter's `"1"`. Real corpus (WorkbookA): Beta's
+`per_rnk_flg`, 0 of 9 real rows with the underlying value `1.0` ever matched `per_rnk_flg="1"`
 until fixed.
 
 **Fix:** `coerce_hyper_value()` now special-cases a whole-number float for `mtype == "text"`:
@@ -109,7 +109,7 @@ first time) fails with `'<SomeColumn>' column does not exist in the rowset`, nam
 that DOES exist and IS independently queryable via plain DAX (`EVALUATE
 SUMMARIZECOLUMNS('T'[SomeColumn])` works fine). A different column name fails on different
 tables, no fixed pattern. Reproducible on a cold Desktop restart against the SAME file, so it is
-NOT the generic "genuinely intermittent" `Dor Seg` AS-engine quirk documented elsewhere.
+NOT the generic "genuinely intermittent" `Seg Status` AS-engine quirk documented elsewhere.
 
 **Root cause:** an Analysis Services ordering issue specific to the FIRST `Full` process on a
 model that has never been processed at all — `DataOnly` and `Calculate` each succeed
@@ -133,43 +133,43 @@ bug — the tell is that the SAME column name is independently queryable via pla
 
 ### 5. OPEN, UNRESOLVED (2026-10-06): fresh rebuilds render several barChart visuals with zero bars, no error
 
-**Symptom:** on GCLM's Acquisition page, 4 chart visuals ("2.2 Quarterly Trend - Cards in Force",
-"2.3 Issuer YoY growth", "2.3 Market YoY growth", "Gap to market") show their Category axis labels
-(a plain list of `Prod Id` values) but draw NO bars/lines/value marks at all — not an error, not a
+**Symptom:** on WorkbookA's Alpha page, 4 chart visuals ("Sheet 4 - Quarterly Trend - Items Active",
+"Sheet 5 - Group YoY growth", "Sheet 5 - Alt YoY growth", "Gap to alt") show their Category axis labels
+(a plain list of `Item Id` values) but draw NO bars/lines/value marks at all — not an error, not a
 "(Blank)" card, just an empty plot area. Confirmed present in **every** fresh rebuild attempted
-this session (`vf9`, `vf10`, `vf11`, `vf12`, `vf12_control`) and **absent** in `out2` (the
+this session (`vf9`, `vf10`, `vf11`, `vf12`, `vf_control_a`) and **absent** in `out2` (the
 pre-existing deliverable, where the same charts render real bars, just with the OLD "same value
 for every category" data bug `02-extraction-gotchas.md`/`05-semantic-model-gotchas.md` above
 fixed). A plain Refresh (Home ribbon) does not fix it.
 
 **Ruled out, with direct evidence — do not re-walk these:**
-- **Not a DAX/data bug.** `EVALUATE SUMMARIZECOLUMNS(Acquisition[Prod Id], "YoY", [Issuer - YoY
-  Growth])` and the full `CALCULATETABLE(...)` reproduction of the visual's own filters both return
+- **Not a DAX/data bug.** `EVALUATE SUMMARIZECOLUMNS(Alpha[Item Id], "YoY", [Group - YoY Growth
+  ])` and the full `CALCULATETABLE(...)` reproduction of the visual's own filters both return
   real, correctly-varying values via `pbi-cli` against the exact same live model the blank chart
   sits in.
 - **Not a query execution error.** Power BI Desktop's own Performance Analyzer (Optimize ribbon →
   Performance Analyzer → Start recording → Refresh visuals) shows a normal duration breakdown for
   the blank chart, no error of any kind.
-- **Not the field-well caption-collision fix** (`02-extraction-gotchas.md`'s `prod_id` caption fix
+- **Not the field-well caption-collision fix** (`02-extraction-gotchas.md`'s `item_id` caption fix
   / `06-report-pbir-gotchas.md`'s `_query_state` `candidate_tables` fix above). Confirmed via a
-  controlled A/B test on two cold copies of the SAME rebuild (`vf12` vs `vf12_control`): reverting
-  ONLY the Category field's table back to the pre-fix binding (`Key Highlights` instead of
-  `Acquisition`), with every other fix left in place, did NOT bring the bars back. The
+  controlled A/B test on two cold copies of the SAME rebuild (`vf12` vs `vf_control_a`): reverting
+  ONLY the Category field's table back to the pre-fix binding (`Highlights Page` instead of
+  `Alpha`), with every other fix left in place, did NOT bring the bars back. The
   caption-collision fix is independently confirmed correct (both fields now resolve to the same,
   right table) — it just isn't the cause of THIS symptom.
 - **Not a `pbi relationship list` gap** for the specific table these 4 charts query — Category and
-  Y both resolve to `Acquisition` directly, no cross-table relationship is even needed for the
+  Y both resolve to `Alpha` directly, no cross-table relationship is even needed for the
   core query.
 
 **Not yet checked (the real next steps, in order of promise):**
-- Whether the 4 top-of-page slicers (`Recommendations[Ctry]`/`[Issr]`/`[Prod Pltfrm]`/`[Prod
-  Typ]` — confirmed via their own `visual.json`, all bound to `Recommendations`, NOT `Acquisition`)
-  carry a saved default selection that propagates a zero-row filter into `Acquisition` through the
-  `Recommendations → Activation → Acquisition` relationship chain — a chain that did not exist at
-  all before this session's fixes (`out2` has zero working relationships touching `Acquisition`).
+- Whether the 4 top-of-page slicers (`Gamma[Ctr]`/`[Grp]`/`[Item Plat]`/`[Item Typ
+  ]` — confirmed via their own `visual.json`, all bound to `Gamma`, NOT `Alpha`)
+  carry a saved default selection that propagates a zero-row filter into `Alpha` through the
+  `Gamma → Beta → Alpha` relationship chain — a chain that did not exist at
+  all before this session's fixes (`out2` has zero working relationships touching `Alpha`).
   A manual DAX repro that ALSO applies these 4 slicers' actual bookmark/default state (not just the
   visual's own local `filterConfig`) would confirm or rule this out directly.
-- Whether the NEW `Activation.'Blend Key (Ctry, Prod Id, Prod Pltfrm, Prod Typ, blank)'` relationship
+- Whether the NEW `Beta.'Blend Key (Ctr, Item Id, Item Plat, Item Typ, blank)'` relationship
   (which also did not exist in `out2`) has a validation issue — the vf10 build log's own validator
   flagged "⚠ 1 of 2 Blend Key relationship(s) have zero overlapping real values" for a DIFFERENT
   pair at the time, worth re-checking whether this one has the same problem under fresh dummy data.
@@ -179,8 +179,8 @@ fixed). A plain Refresh (Home ribbon) does not fix it.
   schema.
 
 **RESOLVED (2026-10-08): root cause is Desktop's own path-keyed cache, not a pipeline bug at all.**
-Recurred on a LATER GCLM session in the exact same shape — Acquisition rendering blank, then
-Activation's "3.4 Preferred MCG" section rendering blank, both AFTER a rebuild that was already
+Recurred on a LATER WorkbookA session in the exact same shape — Alpha rendering blank, then
+Beta's "Sheet 11 - Preferred G" section rendering blank, both AFTER a rebuild that was already
 confirmed correct at the model layer (`pbi-cli dax execute` reproducing the exact visual's own
 filter context returned real, correct rows both times — same signature as the "ruled out" list
 above). The decisive test, done both times: copy the SAME content to a BRAND-NEW folder path
@@ -217,6 +217,6 @@ investigation:**
 
 **Status:** ✅ Explained and has a fast detection procedure. Not a code bug, nothing to fix in
 `extract.py`/`dax.py`/`tmdl.py`/`pbir.py`. The two fixes originally held back by this entry
-(`02-extraction-gotchas.md`'s `prod_id` caption fix, `05-semantic-model-gotchas.md`'s
-`_shelf_agg_only` Penetration fix) were both promoted into `out2` without incident once this was
+(`02-extraction-gotchas.md`'s `item_id` caption fix, `05-semantic-model-gotchas.md`'s
+`_shelf_agg_only` Share fix) were both promoted into `out2` without incident once this was
 understood.

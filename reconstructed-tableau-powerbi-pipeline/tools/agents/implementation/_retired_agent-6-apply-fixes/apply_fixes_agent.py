@@ -29,7 +29,7 @@ The fixpoint loop is the whole point
 Promoting one calc can unblock others that were declined only because they depended on it, so a
 single pass leaves most of the available recovery on the table. The skill re-attempts those
 cascades on each run (its resolvers read the live `emitted` set), so this agent calls it REPEATEDLY
-until a round promotes nothing. Measured on the reference corpus (Prevent Dashboard): a single pass
+until a round promotes nothing. Measured on the reference corpus (WorkbookB Dashboard): a single pass
 promoted 49 objects, while looping to the fixpoint promoted 141 across 11 rounds -- 49, 30, 11, 14,
 14, 9, 6, 6, 1, 1, 0.
 
@@ -253,16 +253,16 @@ def main():
         epilog="""
 Examples:
   # Apply to one project, looping to a fixpoint (auto-uses dax_overrides/<Workbook>.json if present)
-  %(prog)s output/prevent_rebuild/"Prevent Dashboard"
+  %(prog)s output/workbookb_rebuild/"WorkbookB Dashboard"
 
   # See what WOULD be applied, writing nothing
-  %(prog)s output/prevent_rebuild/"Prevent Dashboard" --dry-run
+  %(prog)s output/workbookb_rebuild/"WorkbookB Dashboard" --dry-run
 
   # Every project under a parent directory
   %(prog)s output/corpus_rebuild
 
   # Point at a specific overrides file instead of the auto-discovered one
-  %(prog)s output/prevent_rebuild/"Prevent Dashboard" --overrides dax_overrides/custom.json
+  %(prog)s output/workbookb_rebuild/"WorkbookB Dashboard" --overrides dax_overrides/custom.json
 
 IMPORTANT -- run this on the RAW Agent 1 output, BEFORE Agent 2/3 wire the data. Agent 2/3 COPY the
 whole project, so promoting afterwards leaves the copy and the original out of step. A rebuild also

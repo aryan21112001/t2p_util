@@ -13,7 +13,7 @@ But some of those "free-entry" parameters are not actually free-entry at all: th
 categorical switch that Tableau happens to model as a string parameter, and the ONLY reason
 its real domain isn't visible to the builder is that the domain lives implicitly in an
 IF/ELSEIF or CASE/WHEN comparison inside some OTHER calculated field's formula --
-e.g. `IF [Parameters].[pl.Lookup Type] = "Lookup Date" THEN ... ELSEIF ... = "CE Eligible
+e.g. `IF [Parameters].[pl.Lookup Type] = "Lookup Date" THEN ... ELSEIF ... = "Eligible
 Date" THEN ...`. Tableau's own parameter definition never lists "Lookup Date" as a member;
 Tableau just trusts the workbook author typed a value that some formula happens to test for.
 
@@ -57,7 +57,7 @@ Usage
     python3 materialize_parameter_domains.py <project_dir> [<project_dir> ...] [--apply]
 
 <project_dir> is a built project folder, e.g.
-    output/cit_corpus_run/Prevent Dashboard_dummy
+    output/corpus_run/WorkbookB Dashboard_dummy
 i.e. the folder containing `_work/ir.json` and a `*.SemanticModel` subfolder.
 
 Without --apply this is a dry run: it prints exactly what it would change and writes the

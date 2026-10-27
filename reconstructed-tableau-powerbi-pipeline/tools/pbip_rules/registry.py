@@ -221,8 +221,8 @@ RULES: tuple[Rule, ...] = (
         statement="Column and measure names on a table must be unique CASE-INSENSITIVELY.",
         enforced_by=ENGINE,
         severity=OPEN_FAIL,
-        symptom='TOM\'s name collection ignores case, so "BIC Compliance Check" and "Bic Compliance '
-                'Check" are one name to it though they differ on disk. Desktop refuses to open the '
+        symptom='TOM\'s name collection ignores case, so "SAMPLE CHECK ALPHA" and "Sample Check Alpha'
+                '" are one name to it though they differ on disk. Desktop refuses to open the '
                 'file: "Failed to add a deserialized Column object into the model ... Item \'...\' '
                 'already exists in the collection." Seen on a real corpus workbook where a physical '
                 'column collided with a calculated-field alias of itself.',
@@ -655,7 +655,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='DAX forbids it structurally -- columns compute at refresh time, before any '
                 'query-time measure exists. Desktop reports "A circular dependency was detected" '
-                'naming an unrelated pair of columns, never the real cause. Confirmed on Prevent '
+                'naming an unrelated pair of columns, never the real cause. Confirmed on WorkbookB '
                 'Dashboard: a calculated column referenced a parameter\'s SELECTEDVALUE measure via '
                 'the bare form, the model loaded clean, and every report filter on that column then '
                 'failed with Broken_Filters -- silent until a user opened that exact page. The bare '
@@ -676,7 +676,7 @@ RULES: tuple[Rule, ...] = (
         severity=SILENT_WRONG,
         symptom='Valid-looking DAX that fails at QUERY time, not load time, on the first visual '
                 'that evaluates it: "Cannot convert value \'\' of type Text to type Numeric/Date". '
-                'Tableau uses `+` for both. Confirmed on Prevent Dashboard: '
+                'Tableau uses `+` for both. Confirmed on WorkbookB Dashboard: '
                 '`COALESCE(a,"") + "|" + COALESCE(b,"")`. The translator now rewrites any `+` chain '
                 'containing a literal to `&`, so a hit here means that rewrite regressed.',
         detection=POST_EMIT,
@@ -737,20 +737,20 @@ RULES: tuple[Rule, ...] = (
                  "never a MEASURE.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom='Confirmed on Caribbean - Drilldown (QBR): `Gross Trx Amt Decline Rate` = '
-                '`DIVIDE(SUM(\'caribbean\'[Gross Trx Amt Declined]), ...)`, where '
-                '`Gross Trx Amt Declined` carries no aggregate of its own in its Tableau source '
+        symptom='Confirmed on WorkbookD: `Amount Decline Rate` = '
+                '`DIVIDE(SUM(\'tbl_d\'[Amount Declined]), ...)`, where '
+                '`Amount Declined` carries no aggregate of its own in its Tableau source '
                 'and was correctly promoted to a MEASURE by `tmdl.py`\'s `_aggregate_map` '
                 'fixpoint -- but a promoted measure renders with the IDENTICAL `\'Table\'[Name]` '
                 'string shape as an ordinary column, so no text-only check can tell them apart '
                 'without knowing which names were promoted. Desktop opened the model clean and '
                 'rejected only the dependent visual once a real user clicked it, on the CNP(PPT) '
-                'page\'s "(caribbean) Approval Rate (#/$)" visual: "This expression refers to a '
+                'page\'s "(tbl_d) Approval Rate (#/$)" visual: "This expression refers to a '
                 'Measure object ... which has an error", Underlying Error Missing_References. '
                 'Confirmed corpus-wide, not a one-off: a regex scan for AGGFUNC(\'Table\'[Name]) '
                 'where Name is a measure-only identifier found 135 instances across 3 of 6 '
-                'reference workbooks (Caribbean 18, NGPO Dashboard New - AP Version (MSC) 110, '
-                'LAC Pedidosya Transaction Profile 7) before the fix; 0 after. The primary fix is '
+                'reference workbooks (WorkbookD 18, WorkbookC 110, '
+                'WorkbookI 7) before the fix; 0 after. The primary fix is '
                 'a PRE_EMIT decline: a new `resolve_kind` callback threaded through '
                 '`dax.translate`/`Parser` the same way `resolve_type` already was for the STR() '
                 'date check (SM-DAX-01\'s sibling), so `func_call`\'s aggregate-over-bare-'
@@ -966,7 +966,7 @@ RULES: tuple[Rule, ...] = (
                  "can relate it to what the visual is actually asking for.",
         enforced_by=ENGINE,
         severity=RENDER_FAIL,
-        symptom='Confirmed on NGPO Dashboard New - AP Version (MSC), "Level 4 Analysis" page, visual 0cac7a67f24e6629c51c: query projects only \'Level 3 - Intervention Mapping\'[Card Lifestage], but filterConfig also carried a filter on \'Level 4 - Lifestage X Interventions\'[Topic Area (copy)] -- a different table with NO relationship to the first anywhere in the model (relationships.tmdl is empty for every rebuilt workbook in this corpus -- see build-tableau-pbip/SKILL.md\'s "the join path is exercised only by the synthetic probe"). Desktop: "Can\'t determine relationships between the fields... Underlying Error: InvalidUnconstrainedJoin... Not showing data for DataShape \'DS0\' because it\'s not clear how these fields are related." Root cause is Tableau data BLENDING: the worksheet\'s filter set silently carries fields from a datasource the worksheet\'s own <datasources> list never declares, matched by Tableau at query time with no stored key -- there is no Power BI relationship to emit for it. Scan of all 1,251 visuals across the 6-workbook corpus for "a filterConfig entity absent from the visual\'s own query entities, and not a Param table" found 117 instances across 2 of 6 workbooks (NGPO 80, AP Product Portfolio Management Dashboard 37); 0 in the other 4. Fixed at the generator (pbir.py\'s `_visual_filters`/`_relationship_reachable`): the unreachable filter is DROPPED and reported in RESIDUE.md\'s filter-disposition table, never emitted broken -- a `Param `-prefixed table is exempted (a slicer\'s own direct binding, no relationship needed by design). This rule is the POST_EMIT backstop should the generator regress; it is a graph-reachability question (`Project.relationship_reachable`), not a text match, because a real key-based relationship (never yet seen in this corpus, but structurally possible) would make the SAME cross-table filter legal.',
+        symptom='Confirmed on WorkbookC, "Page L4" page, visual ffffffffffffffffffff: query projects only \'Level 3 - Mapping A\'[Stage Name], but filterConfig also carried a filter on \'Level 4 - Mapping B\'[Group Area (copy)] -- a different table with NO relationship to the first anywhere in the model (relationships.tmdl is empty for every rebuilt workbook in this corpus -- see build-tableau-pbip/SKILL.md\'s "the join path is exercised only by the synthetic probe"). Desktop: "Can\'t determine relationships between the fields... Underlying Error: InvalidUnconstrainedJoin... Not showing data for DataShape \'DS0\' because it\'s not clear how these fields are related." Root cause is Tableau data BLENDING: the worksheet\'s filter set silently carries fields from a datasource the worksheet\'s own <datasources> list never declares, matched by Tableau at query time with no stored key -- there is no Power BI relationship to emit for it. Scan of all 1,251 visuals across the 6-workbook corpus for "a filterConfig entity absent from the visual\'s own query entities, and not a Param table" found 117 instances across 2 of 6 workbooks (WorkbookC 80, WorkbookG 37); 0 in the other 4. Fixed at the generator (pbir.py\'s `_visual_filters`/`_relationship_reachable`): the unreachable filter is DROPPED and reported in RESIDUE.md\'s filter-disposition table, never emitted broken -- a `Param `-prefixed table is exempted (a slicer\'s own direct binding, no relationship needed by design). This rule is the POST_EMIT backstop should the generator regress; it is a graph-reachability question (`Project.relationship_reachable`), not a text match, because a real key-based relationship (never yet seen in this corpus, but structurally possible) would make the SAME cross-table filter legal.',
         detection=POST_EMIT,
         confidence=EMPIRICAL,
         status=IMPLEMENTED,

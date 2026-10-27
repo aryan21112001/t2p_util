@@ -71,7 +71,7 @@ def pbir_name(*parts):
 # children, which is why those are chrome-listed already. Before this, every 'empty' zone fell
 # through to the generic "zone type 'empty' has no mapped Power BI visual" gap instead of the
 # `chrome_zones_dropped` counter -- correct outcome (nothing was ever emitted for it), dishonest
-# accounting (263 of these on Digital Sales - Leads Dashboard alone were counted as "needs a human
+# accounting (263 of these on WorkbookH alone were counted as "needs a human
 # to look at it" for zones that were never anything to look at).
 CHROME_ZONES = {"layout-basic", "layout-flow", "container", "title", "layout-tabbed",
                 "layout-flipboard", "blank", "empty"}
@@ -93,7 +93,7 @@ def _shelf_shape(ws, calc_lookup=None):
     Rows/Cols both empty is Tableau's own signal for the "text table"/BAN-card idiom: a
     worksheet that puts its ONLY field(s) on the Text/Label shelf and nothing on Rows or Cols
     at all -- extremely common for KPI-style dashboards built from many small single-value
-    tiles. Measured on a real corpus workbook (AP Product Portfolio Management Dashboard):
+    tiles. Measured on a real corpus workbook (WorkbookG):
     239 `text`-channel encodings against 50 `rows`/`cols` encodings combined -- the MAJORITY
     shape in that workbook, not an edge case, and every one of those worksheets fell to
     "0 dimension(s) and 0 measure(s)" (an honest-looking but wrong reading) before this,
@@ -113,8 +113,8 @@ def _shelf_shape(ws, calc_lookup=None):
         dims = dims + [e for e in text_fields if not e.get("agg")]
         # Also count measure encodings on Color or Shape channels -- Tableau's up/down-triangle
         # KPI idiom (mark class 'Shape') places its single measure exclusively on these non-
-        # positional channels with nothing on Rows or Cols at all (confirmed: 8 GCLM worksheets
-        # "7.1 Vol YoY Ticks", "7.1 Txn YoY Ticks", etc.).  Only MEASURES (agg is truthy) are
+        # positional channels with nothing on Rows or Cols at all (confirmed: 8 WorkbookA worksheets
+        # "Sheet 8 - Vol YoY Marks", "Sheet 8 - Txn YoY Marks", etc.).  Only MEASURES (agg is truthy) are
         # included here; dims are deliberately excluded so `color_dims` stays undisturbed for
         # the color-as-Category barChart/columnChart rules (which require rows_measure or
         # cols_measure to be True -- impossible when rows/cols are empty, so those rules never
@@ -126,19 +126,19 @@ def _shelf_shape(ws, calc_lookup=None):
         # Rows/Cols resolved dimension(s) only, no measure at all -- a second, narrower Tableau
         # idiom the `not rows and not cols` branch above does not cover: a dimension on Rows
         # filtered down to a single value (a label, not a real grouping), with the actual
-        # displayed number living on the Text shelf (e.g. COUNTD(Leadid), a user calc). Found on
-        # this exact shape across 7 real corpus worksheets ("MQL Leads (2)", "SAL Leads (2)",
-        # "Qualified Leads (2)", "Completed Meetings", "Sub Category Meetings", "AANR Pipeline
+        # displayed number living on the Text shelf (e.g. COUNTD(RecId), a user calc). Found on
+        # this exact shape across 7 real corpus worksheets ("Metric A (2)", "Metric B (2)",
+        # "Qualified Leads (2)", "Completed Items", "Sub Category Items", "Sheet C Pipeline
         # (Won)", "Completed Seller Handoff (Overview)"): each read as "N dimension(s), 0
         # measure(s)" here, and downstream in `_query_state` the Values well ended up bound to
         # the bare filter dimension -- Desktop would show the filter's own text ("MQL") in place
         # of the count it labels, never the real number. Deliberately added only to `aggs`, never
         # `dims`: Rows/Cols already own the dimension count for a worksheet that legitimately
-        # still has a real grouping dimension too (e.g. Sub Category Meetings' Meeting Sub
+        # still has a real grouping dimension too (e.g. Sub Category Items' Meeting Sub
         # Category column), so this must not double-count that.
         text_fields = [e for e in ws["encodings"] if e["channel"] == "text"]
         aggs = aggs + [e for e in text_fields if e.get("agg")]
-    # A Measure Names/Values pivot shelf field (e.g. "1W - Table") has nothing real to resolve
+    # A Measure Names/Values pivot shelf field (e.g. "Sheet 1 - Table") has nothing real to resolve
     # by itself, so it counts as neither a dimension nor a measure above -- but extract.py's
     # `measure_names_pivot` already resolved the real, ordered measure list from the workbook's
     # own <groupfilter> spec (see its docstring). Non-empty here means _query_state below WILL
@@ -159,7 +159,7 @@ def _shelf_shape(ws, calc_lookup=None):
     # dimension's field caption to a bare string-literal formula.  None otherwise.
     # Used by the VISUAL_RULES string-literal entry to classify Tableau's nav-button
     # worksheet idiom (a tab-label whose entire content is a hardcoded string like
-    # "Key Highlights", not a real data column) as a `textbox` rather than `tableEx`.
+    # "Highlights Page", not a real data column) as a `textbox` rather than `tableEx`.
     # Deliberately absent from the shape dict when `calc_lookup is None` -- module-level
     # callers that do not pass formula access (e.g. the self-test's plain `choose_visual(ws)`)
     # get `s.get("dim0_label") == None`, which correctly prevents the rule from firing.
@@ -182,7 +182,7 @@ def _dual_axis_combo(ws):
     Cols), the second promoted to its own synced axis via right-click "Dual Axis". The
     worksheet-level `ws['mark']` every other rule in this table reads is always 'Automatic' for
     this idiom -- it is the outer/default pane's own mark, never either measure's -- which is
-    exactly why no rule above ever fired for it (confirmed on Prevent Dashboard's "1W - Trend":
+    exactly why no rule above ever fired for it (confirmed on WorkbookB Dashboard's "Sheet 1 - Trend":
     RESIDUE.md logged "no rule fired for mark 'Automatic' with 1 dimension(s) and 2 measure(s)"
     before this). The REAL per-measure marks live one level down, on extract.py's own `panes`
     capture (`worksheet_panes` inside `extract_worksheets`): pane id='1' mark='Bar' with its own
@@ -230,10 +230,10 @@ VISUAL_RULES = [
     (lambda m, s: m == "Area", "areaChart", "mark class Area"),
     # Guarded on shelf shape, not just the mark: Power BI's scatterChart needs two CONTINUOUS
     # axes -- one measure on rows AND one on cols, nothing else on either shelf. Checked against
-    # every real corpus Circle/Shape-mark worksheet (23 across "Caribbean - Drilldown (QBR)" and
-    # "NGPO Dashboard New - AP Version (MSC)"): NONE has this shape. All 7 Caribbean ones put TWO
+    # every real corpus Circle/Shape-mark worksheet (23 across "WorkbookD" and
+    # "WorkbookC"): NONE has this shape. All 7 WorkbookD ones put TWO
     # measures on rows and a DIMENSION on cols (Tableau's "circle view"/dot-plot idiom, comparing
-    # two measures across a category -- not an X/Y scatter at all), and all 16 NGPO ones have NO
+    # two measures across a category -- not an X/Y scatter at all), and all 16 WorkbookC ones have NO
     # measure on either shelf (a decorative delta/heatmap glyph technique). The old unconditional
     # rule mapped every one of these to scatterChart anyway, which -- with no real X role ever
     # populated (see the `scatterChart` WELLS entry's own comment) -- Power BI Desktop refused to
@@ -252,10 +252,10 @@ VISUAL_RULES = [
     # are conditional on the measure's sign (positive = green up-triangle, negative = red
     # down-triangle).  No standard Power BI visual reproduces the conditional triangle-icon
     # styling; emitting a plain `card` bound to the same measure shows the number itself (e.g.
-    # "+5.2%") rather than dropping the visual entirely.  Confirmed on 8 GCLM worksheets:
-    # "7.1 Vol YoY Ticks", "7.1 Txn YoY Ticks", "7.1 Ticks decline vol", "7.1 Ticks decline
-    # txn", "7.2 Ticks Chargeback YoY growth Vol", "7.2 Ticks Chargeback Vol", "7.2 Ticks
-    # Chargeback Txn", "7.2 Ticks Chargeback Txn YoY".  Icon/triangle conditional styling is a
+    # "+5.2%") rather than dropping the visual entirely.  Confirmed on 8 WorkbookA worksheets:
+    # "Sheet 8 - Vol YoY Marks", "Sheet 8 - Txn YoY Marks", "Sheet 8 - Marks decline vol", "Sheet 8 - Marks decline txn
+    # ", "Sheet 9 - Marks Return YoY growth Vol", "Sheet 9 - Marks Return Vol", "Sheet 9 - Marks Return Txn
+    # ", "Sheet 9 - Marks Return Txn YoY".  Icon/triangle conditional styling is a
     # deliberately deferred cosmetic gap -- see SKILL.md bug table entry "Shape-mark
     # color/shape-only KPI: card, icon styling deferred".
     # Placed AFTER the scatterChart rule: if BOTH rows_measure AND cols_measure are True, the
@@ -278,7 +278,7 @@ VISUAL_RULES = [
     # Checked BEFORE the no-size rule below so the size-present case is never silently downgraded.
     (lambda m, s: m == "Square" and "color" in s["channels"] and "size" in s["channels"],
      "treemap", "mark class Square with colour AND size encoding -- true treemap"),
-    # A Square mark with colour but NO size is Tableau's colour-matrix / dormancy-heatmap idiom
+    # A Square mark with colour but NO size is Tableau's colour-matrix / delta-heatmap idiom
     # (mark-sizing-setting='marks-scaling-off'): each cell is uniformly sized and only the colour
     # encodes the category value.  Power BI's treemap REQUIRES a size measure in its Values well;
     # without one the visual renders completely blank.  The safe, non-blank fallback is a plain
@@ -295,8 +295,8 @@ VISUAL_RULES = [
     # mark, so the well-known workaround is to fake one with GanttBar: a discrete "step" category
     # on one shelf, a running/aggregated value on the other, and a `size` encoding controlling
     # each bar's length -- the bar is drawn floating, not from a real start date. Checked against
-    # the ONLY two real GanttBar worksheets in the whole 8-workbook fleet ("Waterfall - Issuer",
-    # "Waterfall - Market"): both have this exact shape, and their own field names are literally
+    # the ONLY two real GanttBar worksheets in the whole 8-workbook fleet ("Waterfall - Group",
+    # "Waterfall - Alt"): both have this exact shape, and their own field names are literally
     # "Waterfall Values" / "Waterfall Step" / "Waterfall Color" / "Waterfall Label/Size" -- not
     # named coincidentally, this is unambiguously the waterfall technique. Mapping it to Power
     # BI's `ganttChart` (which expects a Task/StartDate/Duration timeline) would have been a
@@ -331,7 +331,7 @@ VISUAL_RULES = [
     # Desktop file rejects with "Can't display this visual... CustomVisualNotFound" -- it reads
     # as a request for a THIRD-PARTY custom visual by that name, not a color-split ask, because
     # Desktop has no built-in visual registered under that string. Confirmed by opening a real
-    # rebuilt project (LAC Pedidosya Transaction Profile) in Desktop: every color-split bar/
+    # rebuilt project (WorkbookI) in Desktop: every color-split bar/
     # column chart failed to render with that exact error. The field-well SHAPE (Category/Y,
     # plus a Series/Tooltips color well below) needs no change -- stacking is the visual type's
     # own default behaviour, not a different well.
@@ -349,7 +349,7 @@ VISUAL_RULES = [
     # mark is always 'Automatic' (see `_dual_axis_combo`'s own docstring for why), so without this
     # rule it would fall through every mark-specific rule above and land on the generic
     # 2-measure/1-dimension 'Automatic' shape, which has no rule at all -- exactly the review item
-    # this closes (Prevent Dashboard's "1W - Trend").
+    # this closes (WorkbookB Dashboard's "Sheet 1 - Trend").
     (lambda m, s: s["dual_axis_combo"] is not None and s["n_measures"] == 2 and s["n_dims"] == 1,
      "lineClusteredColumnComboChart", "two panes on the same shelf with Bar + Line marks -- "
      "Tableau's dual-axis combo idiom (right-click 'Dual Axis' on a second Rows/Cols measure)"),
@@ -360,9 +360,9 @@ VISUAL_RULES = [
     # rules, a worksheet that puts its only grouping dimension on Color (and its measure on
     # Rows/Cols) lands on the generic "measures only, no dimension -> card" rule below and loses
     # the entire by-category breakdown -- emitting a grand-total-only card where a stacked
-    # bar/column chart should be. Confirmed on 4 real GCLM worksheets ("5.1 Segmentation(Issuer)",
-    # "5.1 Segmentation(Market)", "5.1 Prod ID issuer", "5.1 Prod ID Mkt") -- each appeared on
-    # the Usage Deepdive page as a card with extreme bar-chart aspect-ratio dimensions.
+    # bar/column chart should be. Confirmed on 4 real WorkbookA worksheets ("Sheet 6 - Segmentation(A)",
+    # "Sheet 6 - Segmentation(B)", "Sheet 7 - Item ID A", "Sheet 7 - Item ID B") -- each appeared on
+    # the Detail Page page as a card with extreme bar-chart aspect-ratio dimensions.
     # Checked BEFORE the plain "measures only" card rule so those worksheets don't fall through
     # to it. A worksheet with no dimension on Color AND no positional dimension still reaches the
     # card rule unchanged -- the `color_dims >= 1` guard is explicit.
@@ -396,7 +396,7 @@ VISUAL_RULES = [
     # fallback for this reason.
     #
     # Emitted as `tableEx` either way, so this changes no visual's TYPE. What it changes is the
-    # honesty of the report: 77 real corpus worksheets (12 of them in Prevent Dashboard) were
+    # honesty of the report: 77 real corpus worksheets (12 of them in WorkbookB Dashboard) were
     # being counted as "no rule fired -- needs a human to look at it" when the shape does in fact
     # determine the answer, which buried the genuinely-undecided ones in false positives.
     # Promoted here from generate-copilot-fix-prompts/scripts/suggest_visual_candidates.py, which
@@ -411,8 +411,8 @@ VISUAL_RULES = [
     # caption with no header; `tableEx` draws a COLUMN HEADER (the field's name) above a small
     # value, so the field name visually dominates the tile and the value looks like an
     # afterthought. Seen in real Desktop output for this exact shape: a row of tiles reading
-    # "cl.Selected Metric - Count - Label" / "pl.Date Type Selected" in large text -- which reads
-    # as "the data is missing" even though the value ("Lookups") was rendering correctly directly
+    # "cl.Chosen Metric - Count - Label" / "pl.Date Type Selected" in large text -- which reads
+    # as "the data is missing" even though the value ("Lookup") was rendering correctly directly
     # beneath it. `card` shows one value big; `multiRowCard` shows several values each with a
     # small caption, which is much closer to Tableau's label block than a header-and-rows table.
     # A SINGLE Text-shelf dimension with no measure stays UNDECIDED, deliberately. It could be a
@@ -437,10 +437,10 @@ VISUAL_RULES = [
     # there is no later rule for it to shadow.
     # Automatic marks (or any mark), exactly 1 dimension, 0 measures, where that
     # dimension's own Tableau formula is a bare string literal constant -- e.g.
-    # [Key_High] = "Key Highlights", [Dor] = "Dormancy".  These are Tableau's
+    # [Color_high] = "Highlights Page", [Dor] = "Delta".  These are Tableau's
     # "nav button" worksheet idiom: a coloured zone whose only displayed content is the
     # page/tab name baked directly into a calculated field's formula as a constant string.
-    # Real-corpus examples confirmed in GCLM: "0.Key_high_white", "0.Dor_Blue",
+    # Real-corpus examples confirmed in WorkbookA: "0.Color_light", "0.Color_dark",
     # "0.Acquisition_white", "0.Op_white", "0.Reco_white", "Dashboard_footer" and others.
     #
     # Why tableEx is wrong: a tableEx with a single column renders as an empty-looking table
@@ -497,11 +497,11 @@ _QUICK_CALC_SHELF_CODES = {"pcto", "pcdf", "diff", "cum", "win", "rank"}
 
 def _strip_wrapping_parens(caption):
     """Strip one outer parenthesis pair from a Tableau-auto-named caption like
-    "([SPAC Difference])", and any resulting outer brackets that are Tableau's own
+    "([Diff Metric A])", and any resulting outer brackets that are Tableau's own
     field-reference syntax "[Field]" -> "Field".
 
     Returns the original string unchanged when:
-    - it does not start with "(" and end with ")" (e.g. "Spend Build Up By (copy)" is safe), OR
+    - it does not start with "(" and end with ")" (e.g. "Build Up By (copy)" is safe), OR
     - stripping the parens yields an inner string that contains embedded brackets (i.e. the
       inner part is an expression like "[A] + [B]", not a simple field reference).
 
@@ -512,7 +512,7 @@ def _strip_wrapping_parens(caption):
     inner = caption[1:-1]
     # If the result is a bracket-quoted field reference "[Name]" with no embedded brackets,
     # strip those brackets too -- Tableau's own formula syntax writes field references as
-    # "[FieldName]", so "([SPAC Difference])" becomes "[SPAC Difference]" then "SPAC Difference".
+    # "[FieldName]", so "([Diff Metric A])" becomes "[Diff Metric A]" then "Diff Metric A".
     if (inner.startswith("[") and inner.endswith("]")
             and "[" not in inner[1:-1] and "]" not in inner[1:-1]):
         inner = inner[1:-1]
@@ -533,7 +533,7 @@ WELLS = {
     # Rows/Cols loop overrides this per-channel for scatterChart -- see SCATTER_AXIS_BY_CHANNEL
     # -- because a scatter plot needs TWO independent measure roles (X, Y), not one "Y" holding
     # both. Real-world confirmation this was wrong: every scatterChart this tool ever built (7 in
-    # "Caribbean - Drilldown (QBR)", 16 in "NGPO Dashboard New") bound BOTH its measures into Y
+    # "WorkbookD", 16 in "WorkbookC") bound BOTH its measures into Y
     # and left X empty, and Power BI Desktop refused to render every one of them ("Can't display
     # this visual... Remove Values to display x- and y-axis pairs").
     "scatterChart": {"dim": "Category", "measure": "Y"},
@@ -560,7 +560,7 @@ WELLS = {
 # tools/pbip_rules/checks.py's own `_ROLE_LIMITS`, the independent lint gate that caught the
 # gap this closes: `_query_state`'s primary Rows/Cols path had no cap at all, so a Tableau
 # worksheet with two dimensions on Rows/Cols (ordinary, valid Tableau -- a real corpus pie
-# chart, "Europe Report Status", carries `Europe Report ID` AND `Report Status` on its Rows
+# chart, "Region Rpt Status", carries `Region Report ID` AND `Rpt Status` on its Rows
 # shelf) filled a pieChart's `Category` well with 2 projections. Schema-valid PBIR, but
 # `tools/pbip_lint.py --schemas` on the rebuilt project failed it: "pieChart role 'Category'
 # has 2 fields but the field well accepts 1 -- the editor physically refuses the extra drop".
@@ -634,10 +634,10 @@ EXTRA_ROLE_CAPS = {"Series": 1, "Size": 1}
 # EXTRA_ROLE_CAPS cap already applied, were opened in real Power BI Desktop across TWO separate
 # dummy-data-populated workbooks and rejected with "There's too many columns in the Legend
 # bucket. Please remove some." every single time:
-#   - areaChart, Legend = 'Token vs PAN', a plain calculated COLUMN
-#     ("Caribbean - Drilldown (QBR)")
-#   - barChart/columnChart, Legend = 'Gross vs Dedup Selected', a parameter's SELECTEDVALUE
-#     MEASURE, across 8+ visuals at once ("LAC Pedidosya Transaction Profile")
+#   - areaChart, Legend = 'Token vs Source', a plain calculated COLUMN
+#     ("WorkbookD")
+#   - barChart/columnChart, Legend = 'Raw vs Unique Selected', a parameter's SELECTEDVALUE
+#     MEASURE, across 8+ visuals at once ("WorkbookI")
 # Two different visual types, two different field kinds (column vs. measure), same error both
 # times, and zero visuals of any kind with this well populated have opened cleanly yet. The
 # parsimonious read of that evidence is that the Series/Legend JSON shape itself -- not the
@@ -654,11 +654,11 @@ UNVERIFIED_COLOR_REJECTED = {"areaChart", "barChart", "columnChart", "lineChart"
 # `ROLE_CAPS` is read by BOTH `_query_state` code paths -- the primary Rows/Cols loop AND the
 # Text-shelf fallback below it. Originally only the fallback enforced a cap, and only for
 # "card" (`_SINGLE_VALUE_VISUALS`, now folded in here) -- discovered incomplete by the SAME real
-# corpus bug that motivated `ROLE_CAPS` in the first place: PVT Monthly Report's "VEReport-
-# Status" pie chart has its aggregated measure on Rows, so the PRIMARY loop should have bound
+# corpus bug that motivated `ROLE_CAPS` in the first place: WorkbookF's "Region Rpt Status
+# " pie chart has its aggregated measure on Rows, so the PRIMARY loop should have bound
 # it -- but that measure calc was independently declined by the formula parser, so `_resolve_field`
 # returned `None` for it, `state` came back empty, and control fell through to the FALLBACK
-# path, which bound TWO plain dimension columns (`Europe Report ID`, `Report Status`, both on the
+# path, which bound TWO plain dimension columns (`Region Report ID`, `Rpt Status`, both on the
 # Text shelf) into `pieChart`'s Category well with no cap at all -- the fallback path had never
 # been taught about `ROLE_CAPS`, only about card's old one-off `_SINGLE_VALUE_VISUALS` check.
 # Fixed by having the fallback loop consult the SAME `role_caps` dict the primary loop already
@@ -671,8 +671,8 @@ _ORG_PREFIX_RE = re.compile(r"^(?:cl|pl)\.")
 def _strip_org_prefix(name):
     """Some Tableau authors namespace every calc/parameter under a folder-style prefix baked
     straight into the field's own caption ('cl.' for a calculated field, 'pl.' for a parameter
-    label -- confirmed on Prevent Dashboard: 236 of 747 fields/parameters use one of these two,
-    consistently, with zero real-word false positives -- 'Client Name'/'Client Id' etc. never
+    label -- confirmed on WorkbookB Dashboard: 236 of 747 fields/parameters use one of these two,
+    consistently, with zero real-word false positives -- 'Account Name'/'Account Id' etc. never
     match, since the pattern requires the literal dot right after the 2-letter code). The model
     keeps this real name verbatim everywhere (TMDL, DAX, name_authority.json) -- it IS the
     field's true name, not a guess -- but showing it to a report VIEWER leaks the workbook
@@ -820,8 +820,8 @@ def _visual_filters(builder, page_key, vname, ws, query_entities=frozenset()):
     table is neither one of those, nor a `Param ` table (a slicer's own legitimate direct binding,
     no relationship needed), nor relationship-reachable from one of them via `builder.rel_adj` is
     Tableau data-BLENDING carried straight through with no Power BI relationship underneath it --
-    confirmed on a real Desktop-opened build (NGPO Dashboard New - AP Version (MSC), "Level 4
-    Analysis" page): "Can't determine relationships between the fields... Underlying Error:
+    confirmed on a real Desktop-opened build (WorkbookC, "Page L4
+    " page): "Can't determine relationships between the fields... Underlying Error:
     InvalidUnconstrainedJoin". Emitting that filter is declined rather than guessed at, the same
     fail-closed rule the `range`/date declines just above already follow -- Tableau's blend
     semantics (aggregate-then-join, often many-to-many on a non-unique attribute, no stored key)
@@ -987,7 +987,7 @@ def _extract_string_literal(formula):
     """If `formula` is ONLY a Tableau double-quoted string literal, return its content.
 
     Returns None for everything else (field references, operators, function calls, empty
-    formula).  Used to distinguish a nav-button "Key Highlights" calc from a real
+    formula).  Used to distinguish a nav-button "Highlights Page" calc from a real
     single-column lookup table whose formula references actual data.
 
     Tableau uses double-quote delimiters and two consecutive double-quotes to escape an
@@ -1012,7 +1012,7 @@ def _extract_string_literal(formula):
 # is always SAFE, but for one common, mechanically-recoverable shape it is needlessly lossy: a
 # calc whose ENTIRE formula is an IF/ELSEIF/ELSE cascade gated purely on `[Parameter] = "literal"`
 # comparisons -- Tableau's own "dynamic date grain"/"selected metric" idiom (real corpus example:
-# Prevent Dashboard's `Selected Date - Date Grain - w Dash`, gated on `Report Period`/`Date Grain`
+# WorkbookB Dashboard's `Chosen Date - Grain - w Dash`, gated on `Period Sel`/`Grain Sel`
 # parameters). Every Tableau workbook SAVES a current value for each parameter
 # (`extract_parameters()`'s own `value` field, read straight from the source XML's
 # `<column value=...>`, never a guess) -- so which branch is "active" for THIS workbook is a fact
@@ -1215,7 +1215,7 @@ class ReportBuilder:
                             for a in (self.ir.get("url_actions") or [])}
         # (dashboard, worksheet) pairs that are the SOURCE of some on-select Tableau dashboard
         # action -- see extract.py's `extract_action_source_worksheets` docstring for the real
-        # GCLM case this closes. `_visual` only leaves `drillFilterOtherVisuals` True for a
+        # WorkbookA case this closes. `_visual` only leaves `drillFilterOtherVisuals` True for a
         # worksheet in this set; every other worksheet gets it set False, matching Tableau's own
         # opt-in cross-filtering default instead of Power BI's opt-out one.
         self._action_source_worksheets = set(
@@ -1237,8 +1237,8 @@ class ReportBuilder:
             self.rel_adj[b].add(a)
         # Same purpose as `filter_stats`, one level up: a whole VISUAL, not just one of its
         # filters, whose own field wells span two tables with no relationship path is the other
-        # half of the real Desktop bug this corpus surfaced (NGPO Dashboard New - AP Version
-        # (MSC), "Level 2 Analysis"/"Level 4 Analysis" pages) -- see `_visual`'s own comment for
+        # half of the real Desktop bug this corpus surfaced (WorkbookC
+        # , "Page L2"/"Page L4" pages) -- see `_visual`'s own comment for
         # where this is consulted.
         self.blend_stats = collections.Counter()
         # Datatype per Tableau spelling (caption OR internal name) -- mirrors tmdl.py's own
@@ -1270,7 +1270,7 @@ class ReportBuilder:
             # ID present only in a stale, worksheet-embedded copy of this same parameter (see
             # that function's own comment). tmdl.py's `pindex` already includes these; this
             # index did not, so any reference to a parameter ONLY by such an alias (a real
-            # corpus shape -- Prevent Dashboard's `Parameter 9 1` for `pl.Date Grain`) missed
+            # corpus shape -- WorkbookB Dashboard's `Parameter 9 1` for `pl.Grain Sel`) missed
             # here even though the DAX side resolved it correctly.
             spellings = [p["name"], (p.get("tableau_name") or "").strip("[]")]
             spellings += [a.strip("[]") for a in (p.get("aliases") or [])]
@@ -1292,7 +1292,7 @@ class ReportBuilder:
         # `self.na.by_spelling` resolves ITS name to) -- NOT by the raw spelling other formulas
         # reference it by (that is tmdl.py's `resolve_formula`'s job, for a different caller).
         # Needed because a dim-shaped measure being rescued may itself branch into ANOTHER
-        # measure (real corpus shape: `Selected Date - Date Grain - w Dash` branches into
+        # measure (real corpus shape: `Chosen Date - Grain - w Dash` branches into
         # `Month w Dash - Selected Date Type`, a second parameter-gated cascade of its own) --
         # the rescue must be able to fold that SECOND calc's formula too, by canonical name.
         self._formulas_by_canonical = {}
@@ -1356,7 +1356,7 @@ class ReportBuilder:
         `candidate_tables` (currently only passed by `_visual_filters`, for a FILTER's own field):
         tried, in order, as the PREFERRED table for `by_spelling`'s already-existing local-then-
         global lookup, before falling through to the global-only match below. Real corpus bug
-        (GCLM): a filter authored against one Tableau datasource's `for_view`/`Rgn` field (real
+        (WorkbookA): a filter authored against one Tableau datasource's `view_flag`/`Rgn` field (real
         values like "Trend", or "DOM"/"XB") resolved, by caption alone, to a DIFFERENT table's
         same-named column from a DIFFERENT datasource (whose real domain never contains that
         value at all) -- global-first-match is "genuinely ambiguous when several... datasources
@@ -1365,7 +1365,7 @@ class ReportBuilder:
         global path. The visual's OWN query tables (`query_entities`) are the right local hint: a
         filter overwhelmingly belongs to the same table(s) the worksheet's own shelf fields
         already resolved to. Confirmed live against Desktop (`pbi-cli`): the exact failing filter
-        (`'Recommendations'[For View] = "Trend"`) matched zero of 247,425 real rows before this
+        (`'Gamma'[View Flag] = "Trend"`) matched zero of 247,425 real rows before this
         fix, blanking every visual that filtered through it -- including, via blend-key
         cross-filtering, visuals on OTHER tables entirely.
         """
@@ -1379,7 +1379,7 @@ class ReportBuilder:
             # the plain-column branch below, failed to resolve, and was safely dropped (counted in
             # `unresolved_field_refs`). That fix now makes `field` the REAL column name -- which
             # WOULD resolve there, silently binding the raw, unaggregated column as if it were the
-            # calc's own value (e.g. every row of "Slice By" instead of a % of total). Decline here
+            # calc's own value (e.g. every row of "Selector" instead of a % of total). Decline here
             # explicitly instead, so the fix to extract.py changes nothing about what THIS pipeline
             # ships; only `extract-tablecalc-quickcalcs`-style extensions, reading `_work/ir.json`
             # directly, see the now-correct field name.
@@ -1391,7 +1391,7 @@ class ReportBuilder:
             # line used to, is a different string and never matches, so this ALWAYS fell through
             # to the bare column below. Never caught before because no prior corpus worksheet's
             # rows/cols/tooltip usage combined an aggregation with a plain calculated COLUMN
-            # field through this exact path; the Measure Names/Values pivot ("1W - Table") is the
+            # field through this exact path; the Measure Names/Values pivot ("Sheet 1 - Table") is the
             # first thing that ever exercised it. Prefer the real measure: an implicit
             # aggregation cannot be referenced by name from PBIR.
             _lookup_field = field
@@ -1401,12 +1401,12 @@ class ReportBuilder:
             # common case for a plain dimension dropped on Tooltip/Color/Text, and that was
             # falling straight to the GLOBAL `by_spelling` below with no table hint at all,
             # bypassing the exact protection `candidate_tables` exists to provide. Real corpus
-            # bug (GCLM): "2.3 Issuer YoY Growth"'s own Tooltip field (`Issr`, agg="attr")
-            # resolved to `Recommendations.Issr` instead of `Acquisition.Issr` even though
-            # `anchor_tables` correctly held `("Acquisition",)` -- this branch simply never
-            # consulted it. Combined with a same-session Acquisition<->Activation relationship
-            # that chains through a zero-overlap Activation<->Recommendations relationship, the
-            # mis-bound Tooltip field forced the WHOLE visual to zero rows under any Acquisition
+            # bug (WorkbookA): "Sheet 5 - Growth Rate A"'s own Tooltip field (`Grp`, agg="attr")
+            # resolved to `Gamma.Grp` instead of `Alpha.Grp` even though
+            # `anchor_tables` correctly held `("Alpha",)` -- this branch simply never
+            # consulted it. Combined with a same-session Alpha<->Beta relationship
+            # that chains through a zero-overlap Beta<->Gamma relationship, the
+            # mis-bound Tooltip field forced the WHOLE visual to zero rows under any Alpha
             # filter -- confirmed live via Performance Analyzer (`RowCount: 0`).
             tbl = col = kind = None
             for cand in (candidate_tables or ()):
@@ -1418,7 +1418,7 @@ class ReportBuilder:
             if tbl is None:
                 # Paren-stripping fallback: Tableau auto-names wrapper calcs as "([Field])"
                 # when the formula body is just a parenthesised field reference, e.g.
-                # "([SPAC Difference])".  The wrapper calc may have been DECLINED by the
+                # "([Diff Metric A])".  The wrapper calc may have been DECLINED by the
                 # formula parser (its alias exists but has no emitted PBI object), so the
                 # direct lookup above returned None.  Strip one outer paren pair and any
                 # resulting outer brackets to find the underlying emitted field instead.
@@ -1453,8 +1453,8 @@ class ReportBuilder:
         # zone (that case is already handled separately, a few lines below in `_visual`, via
         # this same `self.param_index`). `self.na.by_spelling` only ever searches TABLE
         # columns/measures, so a bare parameter reference here always missed -- found on a real
-        # workbook (AP Product Portfolio Management Dashboard): every "*_header_subregion"
-        # worksheet across all 5 dashboard pages shows the current 'Issuer Subregion' parameter
+        # workbook (WorkbookG): every "*_header_zone"
+        # worksheet across all 5 dashboard pages shows the current 'Group Zone' parameter
         # value as a text label this way, and every one of them rendered as a blank rectangle
         # (pbip_lint.py's RPT-ROLE-02) before this. Bind to the parameter's SELECTEDVALUE
         # MEASURE, not its raw Value column -- a text/card display wants the scalar current
@@ -1534,29 +1534,29 @@ class ReportBuilder:
         # the same table the worksheet's shelf fields already resolved to" reasoning, just seeded
         # from the measure side instead of from an already-built query state (there isn't one yet
         # at this point in the method -- that's the whole reason this scan runs first).
-        # Real corpus (GCLM), confirmed live: giving `Acquisition`'s own `[prod_id]` column its
+        # Real corpus (WorkbookA), confirmed live: giving `Alpha`'s own `[item_id]` column its
         # missing caption (see `extract.py`'s "explicit <column> tag with no caption" gotcha)
-        # fixed ITS collision but widened "Prod Id" to 5 tables workbook-wide at once (Key
-        # Highlights, Activation, Acquisition, Usage Overview, Usage Deepdive all caption a
-        # `prod_id`-shaped column "Prod Id") -- "2.3 Issuer YoY Growth"'s barChart then resolved
-        # its OWN Category field to `Activation.Prod Id` while its Y measure stayed on
-        # `Acquisition.Issuer - YoY Growth`, two tables now relationship-reachable (so the
+        # fixed ITS collision but widened "Item Id" to 5 tables workbook-wide at once (Highlights Page
+        # , Beta, Alpha, Overview Page, Detail Page all caption a
+        # `item_id`-shaped column "Item Id") -- "Sheet 5 - Growth Rate A"'s barChart then resolved
+        # its OWN Category field to `Beta.Item Id` while its Y measure stayed on
+        # `Alpha.Group - YoY Growth`, two tables now relationship-reachable (so the
         # existing cross-table blend-check at `_visual` didn't fire) but not the SAME table the
-        # worksheet's own filters (`Prod_id_all_logic`, `rank_qtr_flg`, both `Acquisition`-scoped)
+        # worksheet's own filters (`Item_id_all_logic`, `rank_per_flg`, both `Alpha`-scoped)
         # were authored against -- every bar rendered with zero height, categories listed with no
         # value, exactly the "all the graphs went blank" regression this fix closes.
         anchor_tables = []
         # The seed scan itself used to call `_resolve_field` with NO `candidate_tables` at all --
-        # so a measure caption that collides across tables (e.g. `spac_l6_mnth` exists in BOTH
-        # `Recommendations` and `Dormancy`, same real column name, different tables) could seed
+        # so a measure caption that collides across tables (e.g. `sheet_l6_m` exists in BOTH
+        # `Gamma` and `Delta`, same real column name, different tables) could seed
         # `anchor_tables` with the WRONG table before any scoping existed to catch it, and every
         # OTHER field in the worksheet (including its own filters) then inherited that wrong
-        # scope. Confirmed live on GCLM's `Spac_f6_mnth_` worksheet (Dormancy's "Spend Migration"
-        # cards): its own declared datasource is `Dormancy`, but the seed scan's unscoped lookup
-        # resolved `spac_l6_mnth` to `Recommendations` instead, so the `For View` filter ended up
-        # checking `Recommendations[For View]` ("spend_migration", lowercase) instead of
-        # `Dormancy[For View]` ("Spend Migration", title case) -- a value that is genuinely absent
-        # from `Recommendations`, making every one of those cards blank. Seed from the worksheet's
+        # scope. Confirmed live on WorkbookA's `Sheet_f6_m_` worksheet (Delta's "Migration View"
+        # cards): its own declared datasource is `Delta`, but the seed scan's unscoped lookup
+        # resolved `sheet_l6_m` to `Gamma` instead, so the `View Flag` filter ended up
+        # checking `Gamma[View Flag]` ("migration_view", lowercase) instead of
+        # `Delta[View Flag]` ("Migration View", title case) -- a value that is genuinely absent
+        # from `Gamma`, making every one of those cards blank. Seed from the worksheet's
         # OWN declared datasource(s) first; `_resolve_field`'s own candidate_tables fallback chain
         # still reaches the prior unscoped behavior for any worksheet where the measure isn't on
         # its own primary datasource (e.g. an intentional cross-table/blend reference).
@@ -1572,11 +1572,11 @@ class ReportBuilder:
                 anchor_tables.append(hit[0])
         if not anchor_tables:
             # A worksheet with NO measure anywhere in its encodings (a plain dimension/label
-            # display -- e.g. "show this view's own Ctry as text") gives the measure scan above
+            # display -- e.g. "show this view's own Ctr as text") gives the measure scan above
             # nothing to seed from at all, so every field in it fell through to the unscoped
-            # global `_resolve_field` fallback -- confirmed on GCLM's own "Mkt_acti" worksheet,
-            # whose sole `Ctry` field landed on `Recommendations` (first-registered) instead of
-            # `Activation`. 98 of 382 real corpus worksheets share this zero-measure shape.
+            # global `_resolve_field` fallback -- confirmed on WorkbookA's own "Sheet_x" worksheet,
+            # whose sole `Ctr` field landed on `Gamma` (first-registered) instead of
+            # `Beta`. 98 of 382 real corpus worksheets share this zero-measure shape.
             # Fall back to the worksheet's OWN declared datasource(s) (extract.py's
             # `own_datasources`, the exact same raw key `na.table()` was allocated under --
             # mirrors the dashboard-zone `zone["param"]` fix in `_visual` one level up).
@@ -1602,9 +1602,9 @@ class ReportBuilder:
                 # never a raw column -- see this same file's own comment a few lines up in
                 # `_resolve_field`). A measure cannot serve as a Power BI grouping key: Desktop
                 # evaluates it once over the visual's whole filter context, so every row/category
-                # collapses into one. Confirmed on Prevent Dashboard's "1D - OI Summary" page:
-                # `cl.Selected Date - Date Grain - w Dash` on Rows collapsed a 12-month table
-                # into a single "2024-01" row, and `cl.Slice By` used the same way on a
+                # collapses into one. Confirmed on WorkbookB Dashboard's "Sheet 2 - Summary" page:
+                # `cl.Chosen Date - Grain - w Dash` on Rows collapsed a 12-month table
+                # into a single "2024-01" row, and `cl.Selector` used the same way on a
                 # barChart's Category channel left Category empty with the field stranded in Y.
                 # Before declining: if this calc's WHOLE formula is a Parameter-gated
                 # IF-cascade, the workbook's own SAVED parameter values may make which branch
@@ -1640,7 +1640,7 @@ class ReportBuilder:
                     # these to add visual space between row/column groups in a crosstab.
                     # A Power BI table visual has no concept of a spacer column, so projecting
                     # one would just add a null/(Blank) column a viewer was never meant to see.
-                    # Real corpus: GCLM Dormancy heatmaps use 'Blank (1)' formula='' and
+                    # Real corpus: WorkbookA Delta heatmaps use 'Blank (1)' formula='' and
                     # 'Blank' formula='INT(NULL)' as separators between segment groups.
                     self.stats["spacer_dims_skipped"] += 1
                     continue
@@ -1794,7 +1794,7 @@ class ReportBuilder:
                     # aggregated Color field is a genuine Value even when Rows/Cols already
                     # hold real dimensions. Without this, Tableau's "colour-matrix heatmap"
                     # idiom (Square mark, two real dimensions on Rows/Cols, the sole measure on
-                    # Colour, confirmed live on GCLM's `recency` worksheet -- VISUAL_RULES'
+                    # Colour, confirmed live on WorkbookA's `recency` worksheet -- VISUAL_RULES'
                     # Square+colour+no-size rule) lost its ONLY measure: the tableEx rendered
                     # with just the two dimension columns and nothing else, not even a plain
                     # table of numbers, let alone a heatmap.
@@ -1899,10 +1899,10 @@ class ReportBuilder:
                     # wells (not just a filter riding along) project fields from two or more
                     # tables with NO relationship path between them -- Tableau data blending
                     # carried straight into one visual with no stored Power BI relationship
-                    # underneath it. Confirmed on NGPO Dashboard New - AP Version (MSC), "Level 2
-                    # Analysis"/"Level 4 Analysis" pages: e.g. a lineChart's Category came from
-                    # 'Level 3 - Market Interchange Data' while its Y came from 'Level 2 Analysis
-                    # - Data', with `relationships.tmdl` empty. Desktop: "Can't determine
+                    # underneath it. Confirmed on WorkbookC, "Page L2
+                    # "/"Page L4" pages: e.g. a lineChart's Category came from
+                    # 'Level 3 - Mapping Data' while its Y came from 'Page L2 - Data
+                    # ', with `relationships.tmdl` empty. Desktop: "Can't determine
                     # relationships between the fields... Underlying Error:
                     # InvalidUnconstrainedJoin." Same fail-closed rule `_visual_filters` already
                     # applies to a lone unreachable filter, one level up: the whole visual is
@@ -1984,8 +1984,8 @@ class ReportBuilder:
                 # opt-out needed -- unlike Tableau's BAN/floating-text idiom this pair exists to
                 # reproduce (see `choose_visual`'s own comment on `card`/`multiRowCard`), which
                 # shows only the formatted value, nothing underneath. Left on, every one of these
-                # visuals leaks the workbook author's internal calc name (Prevent Dashboard: a
-                # "Lookups" value captioned "cl.Selected Metric - Count - Label" underneath it) --
+                # visuals leaks the workbook author's internal calc name (WorkbookB Dashboard: a
+                # "Lookup" value captioned "cl.Chosen Metric - Count - Label" underneath it) --
                 # a name a report viewer was never meant to see, on every single-value tile this
                 # project builds. Off by default here for the same reason a declined field is
                 # reported rather than guessed: never show the pipeline's own internals to the
@@ -2015,7 +2015,7 @@ class ReportBuilder:
                     if value_props:
                         body["objects"]["value"] = [{"properties": value_props}]
             # A worksheet classified as `textbox` by the string-literal rule: the
-            # dimension's entire formula is a hardcoded label like "Key Highlights" --
+            # dimension's entire formula is a hardcoded label like "Highlights Page" --
             # populate the textbox's paragraph content with that literal so Desktop renders
             # the label rather than showing an empty white box.  Uses the same
             # `objects.general.paragraphs` structure the ZONE_VISUAL["text"] path uses for
@@ -2055,7 +2055,7 @@ class ReportBuilder:
                 # which uses this exact shape for the same property.
                 #
                 # Each run keeps its OWN bold/italic/color/fontSize -- previously flattened to
-                # one plain string, losing all of it (achc alone has 128 multi-run text zones
+                # one plain string, losing all of it (WorkbookJ alone has 128 multi-run text zones
                 # mixing bold+plain in one caption). `horizontalTextAlignment` is paragraph-level
                 # in this schema (Tableau does not vary alignment mid-paragraph in any real
                 # corpus example checked), taken from the zone's own declared alignment.
@@ -2082,7 +2082,7 @@ class ReportBuilder:
                 body["objects"] = {"general": [{"properties": {"paragraphs": [paragraph]}}]}
             if kind == "text" and zone.get("zone_style"):
                 # Tableau's own zone-style background-color/border -- never read before this
-                # (see extract.py's parse_zone_style docstring: 136 of achc's 1064 text zones
+                # (see extract.py's parse_zone_style docstring: 136 of WorkbookJ's 1064 text zones
                 # have a real background, used as colored banner bars/dividers, rendering as a
                 # plain "blank" white box without this). Applies even when the zone has no text
                 # of its own (a purely decorative colored divider), independent of the
@@ -2121,8 +2121,8 @@ class ReportBuilder:
                 # exact key `na.table()` was called with for that datasource, so
                 # `na.tables.get(that_key)` returns the correct PBI table without any
                 # caption-guessing.  Without this, _resolve_field's global fallback returns
-                # whichever table was allocated first -- confirmed to be Recommendations on
-                # GCLM, landing Acquisition's ctry/issr/prod_typ/prod_id filters on the wrong
+                # whichever table was allocated first -- confirmed to be Gamma on
+                # WorkbookA, landing Alpha's ctr/grp/item_typ/item_id filters on the wrong
                 # table and blanking every visual that filtered through them.  Falls through to
                 # candidate_tables=None (existing global search) when param is absent or the
                 # key isn't in na.tables (e.g. a split federated datasource whose sub-tables
@@ -2182,16 +2182,16 @@ class ReportBuilder:
                     # header default (the bound field's raw name, on by default) prints "Value"
                     # on EVERY paramctrl slicer in the report -- indistinguishable from each
                     # other with no indication which parameter each one controls (confirmed on
-                    # Prevent Dashboard's "1D - OI Summary" page: 3 slicers, all captioned
+                    # WorkbookB Dashboard's "Sheet 2 - Summary" page: 3 slicers, all captioned
                     # "Value"). Prefer the ZONE's own "Edit Title..." override when Tableau set
                     # one (`extract.py`'s `custom_title` capture) -- a purpose-built caption for
-                    # THIS control specifically ("Chart Metric Type" for the `pl.Selected
-                    # Metric` parameter, "Color Bar Chart By" for `pl.Color By`) that reads
+                    # THIS control specifically ("Chart Metric Type" for the `pl.Chosen Metric
+                    # ` parameter, "Color Bar Chart By" for `pl.Color By`) that reads
                     # nothing like the parameter's own internal name; falling back to the
                     # parameter's own real caption otherwise, stripped of the same 'cl.'/'pl.'
                     # organizational prefix `_projection`'s own `displayName` override strips
                     # everywhere else, so this header does not reintroduce that exact leak
-                    # (e.g. "pl.Slice By") when there is no custom title to prefer.
+                    # (e.g. "pl.Selector") when there is no custom title to prefer.
                     header_text = (zone.get("custom_title")
                                   or _strip_org_prefix(rec["tableau"]) or rec["tableau"])
                     body.setdefault("objects", {})["header"] = [
@@ -2221,8 +2221,8 @@ class ReportBuilder:
             # found absent; the `<simple-id>` child was missed the first time this was
             # investigated). extract.py's `_nav_button_target` resolves this GUID against every
             # window in the workbook and returns the target's dashboard name -- confirmed
-            # against real corpus workbooks: 10000056_achc_WF_Payments_Insights resolves 21/21
-            # button targets this way, Digital Sales - Leads Dashboard resolves 8/9 (the 1 miss
+            # against real corpus workbooks: WorkbookJ resolves 21/21
+            # button targets this way, WorkbookH resolves 8/9 (the 1 miss
             # has no `<simple-id>` anywhere in the file at all -- a genuinely dangling
             # reference, correctly left unresolvable, not a bug in the lookup).
             #
@@ -2259,8 +2259,8 @@ class ReportBuilder:
             return None
 
         # Tableau permits a small deliberate off-canvas bleed on DECORATIVE zones in its own
-        # primary <zones> tree -- e.g. y='-333' on a logo bitmap (SMB IRF Program), y='-141'/
-        # y='-845' on a section-break image and a title-text zone (Caribbean - Drilldown (QBR)).
+        # primary <zones> tree -- e.g. y='-333' on a logo bitmap (WorkbookE), y='-141'/
+        # y='-845' on a section-break image and a title-text zone (WorkbookD).
         # After scaling to this page's canvas that comes out as a small negative x/y (-1.0 to
         # -3.0 on a ~1280x720-scale page) -- PBIR's schema requires non-negative visual
         # positions, and Desktop's own report editor would never let a human author one, so a
@@ -2299,12 +2299,12 @@ class ReportBuilder:
 
     # A chart-type visual (as opposed to card/tableEx/multiRowCard/slicer/textbox/image, which
     # render fine at any size) needs real plotting area -- axis, bars/line/points -- to show
-    # anything at all. Confirmed live on GCLM's Usage Deepdive page: Tableau's own zone geometry
-    # for `5.2 - Seg issuer`/`5.2 - Seg Market` etc. is genuinely only ~57-68px tall once scaled
+    # anything at all. Confirmed live on WorkbookA's Detail Page page: Tableau's own zone geometry
+    # for `5.2 - Seg group`/`Sheet 10 - Seg B` etc. is genuinely only ~57-68px tall once scaled
     # to this page's canvas (Tableau itself compresses a chart down to fit almost any space, no
     # matter how cramped), but Power BI Desktop has its own hard rendering floor below which it
     # gives up and shows a generic placeholder icon instead of real bars -- confirmed by contrast
-    # against this SAME page's `5.1 Segmentation(Issuer/Market)` charts, which render correctly
+    # against this SAME page's `Sheet 6 - Segmentation(Group/Alt)` charts, which render correctly
     # at ~300px tall. 120 is a conservative pick comfortably above the confirmed-broken 57-68px
     # band without being needlessly large.
     _CHART_VISUAL_TYPES = frozenset({
@@ -2420,12 +2420,12 @@ class ReportBuilder:
 
     def _fix_sliver_overlaps(self, visuals):
         """Tableau's own zone geometry occasionally has two sibling zones overlapping by a few
-        pixels at the shared canvas scale -- confirmed real example: GCLM Acquisition's zone 26
-        ('2.3 Issuer YoY Growth') and zone 81 ('2. Prod ID') overlap by ~8px in x (full height
+        pixels at the shared canvas scale -- confirmed real example: WorkbookA Alpha's zone 26
+        ('Sheet 5 - Growth Rate A') and zone 81 ('2. Item ID') overlap by ~8px in x (full height
         in y), inherited verbatim from the .twb's own x/w values -- not something this pipeline's
         own scaling introduced. Tableau's own renderer tolerates this (internal padding/borders
         absorb a few px of nominal overlap); Power BI's visual containers do not -- the result is
-        visible clipping ("Issuer" rendering as "ssuer" because the neighbour's edge sits on top
+        visible clipping ("Group" rendering as "ssuer" because the neighbour's edge sits on top
         of its first letter) or a stray hairline where two borders cross. A real-corpus survey of
         this workbook found 251 such pairs across all 10 pages -- systematic, not a one-off.
 
@@ -2612,17 +2612,17 @@ if __name__ == "__main__":
     assert _filter_literal("0", "boolean") == {"Literal": {"Value": "false"}}, (
         "a boolean filter value must resolve from its declared dtype, not from str(v) truthiness "
         "(str('0') is truthy in Python)")
-    assert _projection("T", "cl.Selected Metric - Count", False)["displayName"] == (
-        "Selected Metric - Count"), (
+    assert _projection("T", "cl.Chosen Metric - Count", False)["displayName"] == (
+        "Chosen Metric - Count"), (
         "a 'cl.'-namespaced field must get a stripped-prefix displayName override in every "
         "projection, without changing its real Property/queryRef")
-    assert _projection("T", "cl.Selected Metric - Count", False)["field"]["Column"][
-        "Property"] == "cl.Selected Metric - Count", (
+    assert _projection("T", "cl.Chosen Metric - Count", False)["field"]["Column"][
+        "Property"] == "cl.Chosen Metric - Count", (
         "the displayName override must never touch the real bound field")
-    assert _projection("T", "pl.Slice By", True)["displayName"] == "Slice By", (
+    assert _projection("T", "pl.Selector", True)["displayName"] == "Selector", (
         "the 'pl.' parameter-label prefix strips the same way as 'cl.'")
-    assert "displayName" not in _projection("T", "Client Name", False), (
-        "'Client Name' must NOT be mistaken for the 'cl.' prefix -- no literal dot right after "
+    assert "displayName" not in _projection("T", "Account Name", False), (
+        "'Account Name' must NOT be mistaken for the 'cl.' prefix -- no literal dot right after "
         "the 2-letter code, so no override key is added at all")
     assert "displayName" not in _projection("T", "Real Field", False)
 
@@ -2650,10 +2650,10 @@ if __name__ == "__main__":
     assert any("date/dateTime categorical filter" in k for k in _fb.filter_stats), (
         "the decline must be visible in filter_stats, not silently dropped")
 
-    # The real Desktop bug: NGPO Dashboard New - AP Version (MSC), "Level 4 Analysis" page,
-    # visual 0cac7a67f24e6629c51c. Its OWN query projects only 'Level 3 - Intervention
-    # Mapping'[Card Lifestage], but its filterConfig also carried a filter on 'Level 4 -
-    # Lifestage X Interventions'[Topic Area (copy)] -- a table with NO relationship path to the
+    # The real Desktop bug: WorkbookC, "Page L4" page,
+    # visual ffffffffffffffffffff. Its OWN query projects only 'Level 3 - Mapping A
+    # '[Stage Name], but its filterConfig also carried a filter on 'Level 4 - Mapping B
+    # '[Group Area (copy)] -- a table with NO relationship path to the
     # visual's own query table, because relationships.tmdl is empty for this corpus (Tableau
     # data blending, not a stored key). Desktop refused the page: "Can't determine
     # relationships between the fields... InvalidUnconstrainedJoin". A filter on the query's OWN
@@ -2666,8 +2666,8 @@ if __name__ == "__main__":
         rel_adj = collections.defaultdict(set)  # empty graph -- exactly this corpus's reality
 
         _FIELDS = {
-            "Card Lifestage": ("Level 3 - Intervention Mapping", "Card Lifestage", False),
-            "Topic Area (copy)": ("Level 4 - Lifestage X Interventions", "Topic Area (copy)",
+            "Stage Name": ("Level 3 - Mapping A", "Stage Name", False),
+            "Group Area (copy)": ("Level 4 - Mapping B", "Group Area (copy)",
                                    False),
             "Show as": ("Param Show as_", "Value", False),
         }
@@ -2676,18 +2676,18 @@ if __name__ == "__main__":
             return self._FIELDS[field]
 
     _bb = _FakeBlendBuilder()
-    _query_ents = {"Level 3 - Intervention Mapping"}
+    _query_ents = {"Level 3 - Mapping A"}
     _flt_ws = {"filters": [
-        {"kind": "in", "field": "Topic Area (copy)", "values": ["X"], "exclude": [],
+        {"kind": "in", "field": "Group Area (copy)", "values": ["X"], "exclude": [],
          "context": False},
-        {"kind": "in", "field": "Card Lifestage", "values": ["Retention"], "exclude": [],
+        {"kind": "in", "field": "Stage Name", "values": ["Retention"], "exclude": [],
          "context": False},
         {"kind": "in", "field": "Show as", "values": ["Y"], "exclude": [], "context": False},
     ]}
     _emitted = _visual_filters(_bb, "p", "v", _flt_ws, _query_ents)
     _emitted_entities = {f["field"]["Column"]["Expression"]["SourceRef"]["Entity"]
                           for f in _emitted}
-    ok = (_emitted_entities == {"Level 3 - Intervention Mapping", "Param Show as_"}
+    ok = (_emitted_entities == {"Level 3 - Mapping A", "Param Show as_"}
           and any("no relationship path" in k for k in _bb.filter_stats))
     bad0 = 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} cross-table blend filter declined, same-table + Param "
@@ -2705,7 +2705,7 @@ if __name__ == "__main__":
           f"{len(_emitted2)} emitted")
 
     # `_resolve_field`'s `candidate_tables`: a caption genuinely owned by TWO tables (real corpus
-    # shape -- "For View" is a real column on both 'Activation' and 'Recommendations', from two
+    # shape -- "View Flag" is a real column on both 'Beta' and 'Gamma', from two
     # DIFFERENT Tableau datasources that happen to share a caption). Global-first-match alone
     # cannot tell these apart; the visual's own query table must win.
     class _FakeNA:
@@ -2732,40 +2732,40 @@ if __name__ == "__main__":
 
         _resolve_field = ReportBuilder._resolve_field
 
-    _na = _FakeNA({"For View": [("Recommendations", "For View", "column"),
-                                 ("Activation", "For View", "column")]})
+    _na = _FakeNA({"View Flag": [("Gamma", "View Flag", "column"),
+                                 ("Beta", "View Flag", "column")]})
     _rb = _FakeResolveBuilder(_na)
-    _hit_pref = _rb._resolve_field("For View", None, candidate_tables=("Activation",))
-    ok = _hit_pref == ("Activation", "For View", False)
+    _hit_pref = _rb._resolve_field("View Flag", None, candidate_tables=("Beta",))
+    ok = _hit_pref == ("Beta", "View Flag", False)
     bad0 += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} candidate_tables prefers the visual's own table over "
           f"global first-match on a cross-table caption collision: {_hit_pref}")
 
-    _hit_noglobal = _rb._resolve_field("For View", None, candidate_tables=())
-    ok = _hit_noglobal == ("Recommendations", "For View", False)
+    _hit_noglobal = _rb._resolve_field("View Flag", None, candidate_tables=())
+    ok = _hit_noglobal == ("Gamma", "View Flag", False)
     bad0 += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} no candidate_tables falls back to the old global-first-"
           f"match behavior unchanged: {_hit_noglobal}")
 
-    _hit_miss = _rb._resolve_field("For View", None, candidate_tables=("Dormancy",))
-    ok = _hit_miss == ("Recommendations", "For View", False)
+    _hit_miss = _rb._resolve_field("View Flag", None, candidate_tables=("Delta",))
+    ok = _hit_miss == ("Gamma", "View Flag", False)
     bad0 += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} a candidate table that doesn't own the caption falls "
           f"through to the next candidate, then the global match: {_hit_miss}")
 
     # `_query_state` itself must thread the SAME candidate_tables preference through its own
-    # Rows/Cols resolution, not just `_visual_filters`. Real corpus (GCLM), confirmed live:
-    # captioning Acquisition's own `prod_id` column "Prod Id" (extract.py's own gotcha) widened
-    # the caption to 5 tables workbook-wide; "2.3 Issuer YoY Growth"'s barChart then resolved its
-    # Category field to `Activation.Prod Id` (global first-match) while its Y measure stayed on
-    # `Acquisition.Issuer - YoY Growth` -- two DIFFERENT tables for ONE worksheet's own shelves,
+    # Rows/Cols resolution, not just `_visual_filters`. Real corpus (WorkbookA), confirmed live:
+    # captioning Alpha's own `item_id` column "Item Id" (extract.py's own gotcha) widened
+    # the caption to 5 tables workbook-wide; "Sheet 5 - Growth Rate A"'s barChart then resolved its
+    # Category field to `Beta.Item Id` (global first-match) while its Y measure stayed on
+    # `Alpha.Group - YoY Growth` -- two DIFFERENT tables for ONE worksheet's own shelves,
     # every bar rendering with zero height. `_query_state` must instead prefer whichever table a
     # measure on the SAME worksheet already resolved to.
     class _FakeCollisionReportBuilder:
-        """Simulates a real caption collision: 'Prod Id' resolves to 'Activation' with no table
-        hint (global first-match, picking the WRONG table), but to 'Acquisition' once that table
+        """Simulates a real caption collision: 'Item Id' resolves to 'Beta' with no table
+        hint (global first-match, picking the WRONG table), but to 'Alpha' once that table
         is preferred -- exactly the shape `by_spelling` produces for a caption two tables share.
-        'Issuer - YoY Growth' is a measure, unambiguous, always 'Acquisition' regardless of hint.
+        'Group - YoY Growth' is a measure, unambiguous, always 'Alpha' regardless of hint.
         """
         def __init__(self):
             self.stats = collections.Counter()
@@ -2773,28 +2773,28 @@ if __name__ == "__main__":
             self._formulas_by_canonical = {}
 
         def _resolve_field(self, field, agg, candidate_tables=None):
-            if field == "Issuer - YoY Growth":
-                return ("Acquisition", "Issuer - YoY Growth", True)
-            if field == "Prod Id":
+            if field == "Group - YoY Growth":
+                return ("Alpha", "Group - YoY Growth", True)
+            if field == "Item Id":
                 for cand in (candidate_tables or ()):
-                    if cand == "Acquisition":
-                        return ("Acquisition", "Prod Id", False)
-                return ("Activation", "Prod Id", False)  # global first-match, no hint
+                    if cand == "Alpha":
+                        return ("Alpha", "Item Id", False)
+                return ("Beta", "Item Id", False)  # global first-match, no hint
             return None
 
         _try_rescue_dim_shaped_measure = ReportBuilder._try_rescue_dim_shaped_measure
         _fold_leaf = ReportBuilder._fold_leaf
         _param_current_value = ReportBuilder._param_current_value
 
-    _coll_ws = {"name": "2.3 Issuer YoY Growth", "encodings": [
-        {"channel": "rows", "field": "Prod Id", "agg": None},
-        {"channel": "cols", "field": "Issuer - YoY Growth", "agg": "usr"},
+    _coll_ws = {"name": "Sheet 5 - Growth Rate A", "encodings": [
+        {"channel": "rows", "field": "Item Id", "agg": None},
+        {"channel": "cols", "field": "Group - YoY Growth", "agg": "usr"},
     ]}
     _fb_coll = _FakeCollisionReportBuilder()
     _q_coll = ReportBuilder._query_state(_fb_coll, _coll_ws, "barChart")
     _cat_entity = _q_coll["queryState"]["Category"]["projections"][0]["field"]["Column"][
         "Expression"]["SourceRef"]["Entity"]
-    ok = _cat_entity == "Acquisition"
+    ok = _cat_entity == "Alpha"
     bad0 += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state prefers the SAME table as this worksheet's "
           f"own measure for a caption-colliding Category field, instead of global first-match: "
@@ -2804,12 +2804,12 @@ if __name__ == "__main__":
     # `is_measure=True`) must fall back to the OLD global-first-match behavior unchanged --
     # `anchor_tables` is empty, so `candidate_tables=()` reproduces today's existing resolution.
     _coll_ws_dimonly = {"name": "w", "encodings": [
-        {"channel": "rows", "field": "Prod Id", "agg": None},
+        {"channel": "rows", "field": "Item Id", "agg": None},
     ]}
     _q_coll2 = ReportBuilder._query_state(_fb_coll, _coll_ws_dimonly, "tableEx")
     _cat_entity2 = _q_coll2["queryState"]["Values"]["projections"][0]["field"]["Column"][
         "Expression"]["SourceRef"]["Entity"]
-    ok = _cat_entity2 == "Activation"
+    ok = _cat_entity2 == "Beta"
     bad0 += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} with no measure to anchor on, _query_state's global-"
           f"first-match resolution is unchanged (no regression): Category entity={_cat_entity2!r}")
@@ -2844,7 +2844,7 @@ if __name__ == "__main__":
         (ws("GanttBar", D, M), "ganttChart", True),
         # A `size` encoding on a GanttBar mark is the real-corpus signature of the waterfall
         # technique, not a literal timeline -- see the rule's own comment for the two real
-        # "Waterfall - Issuer"/"Waterfall - Market" worksheets this was found from.
+        # "Waterfall - Group"/"Waterfall - Alt" worksheets this was found from.
         (ws("GanttBar", D, M, chans=("size",)), "waterfallChart", True),
         (ws("Square", [], M), "card", True),
         # Square + colour + size is a true treemap (size encodes area, colour the group).
@@ -2857,11 +2857,11 @@ if __name__ == "__main__":
         (ws("Text", [], M), "card", True),
         (ws("Automatic", [], M), "card", True),
         # Dimension ONLY on Color (no positional dim), 1 measure on cols -> barChart.
-        # Real GCLM shape: "5.1 Prod ID issuer" / "5.1 Prod ID Mkt" (cols: SUM measure,
-        # color: prod_id dimension, rows empty). Was misclassified as card before this fix.
+        # Real WorkbookA shape: "Sheet 7 - Item ID A" / "Sheet 7 - Item ID B" (cols: SUM measure,
+        # color: item_id dimension, rows empty). Was misclassified as card before this fix.
         (ws("Automatic", [], M, chans=("color",)), "barChart", True),
         # Dimension ONLY on Color, 1 measure on rows -> columnChart.
-        # Real GCLM shape: "5.1 Segmentation(Issuer)" / "5.1 Segmentation(Market)".
+        # Real WorkbookA shape: "Sheet 6 - Segmentation(A)" / "Sheet 6 - Segmentation(B)".
         (ws("Automatic", M, [], chans=("color",)), "columnChart", True),
         # No color dimension at all -> still card (no regression).
         # Verified: the new rules gate on color_dims >= 1, so this shape is unchanged.
@@ -2889,14 +2889,14 @@ if __name__ == "__main__":
         print(f"  {'OK  ' if ok else 'FAIL'} {w['mark']:<10} -> {vt:<16} "
               f"decided={decided}  {why}")
 
-    # ---- Shape-mark KPI triangle idiom (8 GCLM worksheets: "7.1 Vol YoY Ticks" etc.) ---------
+    # ---- Shape-mark KPI triangle idiom (8 WorkbookA worksheets: "Sheet 8 - Vol YoY Marks" etc.) ---------
     # mark='Shape', measure on BOTH Color AND Shape channels (Tableau's own dual-channel
     # convention for this idiom), nothing on Rows or Cols -- must decide `card`, not be dropped.
     _shape_kpi_ws = {"name": "w", "mark": "Shape", "title": None,
                      "shelves": {"rows": [], "cols": [], "pages": []},
                      "encodings": [
-                         {"channel": "color", "field": "Ticks Decline Vol - Rate", "agg": "usr"},
-                         {"channel": "shape", "field": "Ticks Decline Vol - Rate", "agg": "usr"},
+                         {"channel": "color", "field": "Marks Decline Vol - Rate", "agg": "usr"},
+                         {"channel": "shape", "field": "Marks Decline Vol - Rate", "agg": "usr"},
                      ]}
     vt_kpi, why_kpi, dec_kpi = choose_visual(_shape_kpi_ws)
     ok = (vt_kpi == "card" and dec_kpi)
@@ -2908,7 +2908,7 @@ if __name__ == "__main__":
     _shape_kpi_color_only = {"name": "w", "mark": "Shape", "title": None,
                              "shelves": {"rows": [], "cols": [], "pages": []},
                              "encodings": [
-                                 {"channel": "color", "field": "Ticks Decline Vol - Rate",
+                                 {"channel": "color", "field": "Marks Decline Vol - Rate",
                                   "agg": "usr"},
                              ]}
     vt_kco, _why_kco, dec_kco = choose_visual(_shape_kpi_color_only)
@@ -2930,7 +2930,7 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} Shape + rows+cols both have measure -> {vt_ss!r} "
           f"decided={dec_ss} (scatterChart rule must still win)")
 
-    # Dual-axis bar+line combo -- Prevent Dashboard's own "1W - Trend" shape: mark 'Automatic'
+    # Dual-axis bar+line combo -- WorkbookB Dashboard's own "Sheet 1 - Trend" shape: mark 'Automatic'
     # at the worksheet level (the outer/default pane's own mark), 2 measures on Rows, 1
     # dimension on Cols, and 2 identified sub-panes (Bar + Line) each naming its own measure.
     combo_ws = ws("Automatic",
@@ -2972,8 +2972,8 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} valid panes but only 1 real measure on the shelf -> "
           f"{vt} (must not fire the combo rule): decided={decided}")
 
-    # Text-shelf fallback -- the bug this session found on a real workbook (AP Product
-    # Portfolio Management Dashboard): a worksheet with its only field(s) on Text and NOTHING
+    # Text-shelf fallback -- the bug this session found on a real workbook (WorkbookG
+    # ): a worksheet with its only field(s) on Text and NOTHING
     # on Rows/Cols read as "0 dimension(s), 0 measure(s)" before this fix, so no rule ever
     # fired for it even though Tableau's own file plainly shows a field. mark 'Automatic' with
     # one aggregated Text-shelf field, no Rows/Cols at all, must now read as a measures-only,
@@ -3039,7 +3039,7 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state caps a card's Values well at 1 and counts "
           f"the overflow: {q2}  dropped={fb2.stats['text_field_role_capacity_dropped']}")
 
-    # The real bug this session found on 7 corpus worksheets ("MQL Leads (2)" etc.): a dimension
+    # The real bug this session found on 7 corpus worksheets ("Metric A (2)" etc.): a dimension
     # on Rows filtered down to a single value (a label, not a real grouping), with the actual
     # displayed number on the Text shelf. Before this fix, `_shelf_shape` never looked at the
     # Text shelf once Rows/Cols resolved ANYTHING (even a bare dimension), so this shape read as
@@ -3048,21 +3048,21 @@ if __name__ == "__main__":
     # count it labels). Both halves of that bug are asserted here: the shape must now count the
     # Text-shelf measure, and the binding must include it.
     filtered_label_ws = {"name": "w", "mark": "Automatic", "title": None,
-                          "shelves": {"rows": [{"field": "Lead Stages", "agg": None}],
+                          "shelves": {"rows": [{"field": "Stage List", "agg": None}],
                                       "cols": [], "pages": []},
-                          "encodings": [{"channel": "rows", "field": "Lead Stages", "agg": None},
-                                        {"channel": "text", "field": "Leadid", "agg": "ctd"}]}
+                          "encodings": [{"channel": "rows", "field": "Stage List", "agg": None},
+                                        {"channel": "text", "field": "RecId", "agg": "ctd"}]}
     vt, why, decided = choose_visual(filtered_label_ws)
     ok = "1 measure(s)" in why
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} filtered-dimension-as-label + Text measure counts as "
           f"1 measure, not 0: {vt} decided={decided}  {why}")
 
-    fb6 = _FakeReportBuilder({"Lead Stages": ("T", "Lead Stages", False),
-                              "Leadid": ("T", "Leadid", True)})
+    fb6 = _FakeReportBuilder({"Stage List": ("T", "Stage List", False),
+                              "RecId": ("T", "RecId", True)})
     q6 = ReportBuilder._query_state(fb6, filtered_label_ws, "tableEx")
     refs = {p["queryRef"] for p in q6["queryState"]["Values"]["projections"]} if q6 else set()
-    ok = refs == {"T.Lead Stages", "T.Leadid"}
+    ok = refs == {"T.Stage List", "T.RecId"}
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state's Values well binds BOTH the filter "
           f"dimension and the real Text measure, not the dimension alone: {refs}")
@@ -3072,12 +3072,12 @@ if __name__ == "__main__":
     # `_shape_kpi_ws` was built earlier (in the choose_visual section); `_FakeReportBuilder` is
     # now defined, so the binding tests live here.
     _fb_kpi = _FakeReportBuilder(
-        {"Ticks Decline Vol - Rate": ("OpsMgmt", "Ticks Decline Vol - Rate", True)})
+        {"Marks Decline Vol - Rate": ("OpsX", "Marks Decline Vol - Rate", True)})
     q_kpi = ReportBuilder._query_state(_fb_kpi, _shape_kpi_ws, "card")
     ok = (q_kpi is not None
           and len(q_kpi["queryState"]["Values"]["projections"]) == 1
           and q_kpi["queryState"]["Values"]["projections"][0]["queryRef"]
-          == "OpsMgmt.Ticks Decline Vol - Rate")
+          == "OpsX.Marks Decline Vol - Rate")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state binds a Color/Shape-channel KPI measure "
           f"into the card's Values well: {q_kpi}")
@@ -3093,9 +3093,9 @@ if __name__ == "__main__":
     # Colour-matrix heatmap idiom: a Square mark with REAL dimensions on BOTH Rows and Cols
     # (unlike the Shape-KPI case above, where rows/cols are both empty) plus the sole measure
     # on Colour. `tableEx` has no legend/series well at all, so unlike a real chart's Color
-    # shelf, this is unambiguously a Value, not a series split -- confirmed live on GCLM's
-    # `recency` worksheet (rows=f6_crd_seg_recency, cols=l6_crd_seg_recency, colour=SUM(
-    # no_of_cards_recency)), whose tableEx previously carried only the two dimension columns
+    # shelf, this is unambiguously a Value, not a series split -- confirmed live on WorkbookA's
+    # `recency` worksheet (rows=f6_seg_recency, cols=l6_seg_recency, colour=SUM(
+    # no_of_items_recency)), whose tableEx previously carried only the two dimension columns
     # with no measure at all.
     _heatmap_ws = {"name": "w", "mark": "Square", "title": None,
                    "shelves": {"rows": [{"field": "RowDim"}], "cols": [{"field": "ColDim"}],
@@ -3106,13 +3106,13 @@ if __name__ == "__main__":
                        {"channel": "color", "field": "Cell Count", "agg": "sum"},
                    ]}
     _fb_heatmap = _FakeReportBuilder({
-        "RowDim": ("Dormancy", "RowDim", False),
-        "ColDim": ("Dormancy", "ColDim", False),
-        "Cell Count": ("Dormancy", "Cell Count", True),
+        "RowDim": ("Delta", "RowDim", False),
+        "ColDim": ("Delta", "ColDim", False),
+        "Cell Count": ("Delta", "Cell Count", True),
     })
     q_heatmap = ReportBuilder._query_state(_fb_heatmap, _heatmap_ws, "tableEx")
     refs = {p["queryRef"] for p in q_heatmap["queryState"]["Values"]["projections"]} if q_heatmap else None
-    ok = refs == {"Dormancy.RowDim", "Dormancy.ColDim", "Dormancy.Cell Count"}
+    ok = refs == {"Delta.RowDim", "Delta.ColDim", "Delta.Cell Count"}
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state binds a Square-mark colour-matrix "
           f"heatmap's Colour measure into tableEx's Values well ALONGSIDE both real Rows/Cols "
@@ -3123,19 +3123,19 @@ if __name__ == "__main__":
     # the Input is a RAW column (never the measure itself) wrapped in a fresh SUM aggregation,
     # and the selector keys off the MEASURE's own queryRef so Desktop applies the rule to the
     # right Values-well column.
-    _grad = _heatmap_gradient_object("Dormancy", "no_of_cards_recency",
-                                      "Dormancy.SUM of no_of_cards_recency")
+    _grad = _heatmap_gradient_object("Delta", "no_of_items_recency",
+                                      "Delta.SUM of no_of_items_recency")
     _fill = _grad["properties"]["backColor"]["solid"]["color"]["expr"]["FillRule"]
     ok = (_fill["Input"]["Aggregation"]["Expression"]["Column"]["Property"]
-          == "no_of_cards_recency"
+          == "no_of_items_recency"
           and _fill["Input"]["Aggregation"]["Expression"]["Column"]["Expression"]["SourceRef"]
-          ["Entity"] == "Dormancy"
+          ["Entity"] == "Delta"
           and _fill["Input"]["Aggregation"]["Function"] == 0
           and _fill["FillRule"]["linearGradient2"]["min"]["color"]["Literal"]["Value"]
           == "'#FFFFFF'"
           and _fill["FillRule"]["linearGradient2"]["max"]["color"]["Literal"]["Value"]
           == "'#118DFF'"
-          and _grad["selector"]["metadata"] == "Dormancy.SUM of no_of_cards_recency")
+          and _grad["selector"]["metadata"] == "Delta.SUM of no_of_items_recency")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _heatmap_gradient_object keys the gradient's Input off "
           f"the RAW column (not the measure) and its selector off the measure's own queryRef: "
@@ -3162,22 +3162,22 @@ if __name__ == "__main__":
 
     # A pieChart's Category well is a ONE-field limit in real Desktop (ROLE_CAPS, mirroring
     # tools/pbip_rules/checks.py's _ROLE_LIMITS). Two dimensions on a real Tableau worksheet's
-    # Rows shelf (ordinary, valid Tableau -- the real corpus case that surfaced this: PVT
-    # Monthly Report's "Europe Report Status" pie chart, `Europe Report ID` + `Report Status`
+    # Rows shelf (ordinary, valid Tableau -- the real corpus case that surfaced this: WorkbookF
+    # 's "Region Rpt Status" pie chart, `Region Report ID` + `Rpt Status`
     # both on Rows) must bind only the FIRST resolving dimension into Category, and count the
     # rest as dropped -- not silently discard them, and not emit a 2-field well Desktop refuses.
     pie_two_dims = {"name": "w", "mark": "Pie", "title": None,
                     "shelves": {"rows": [], "cols": [], "pages": []},
-                    "encodings": [{"channel": "rows", "field": "Europe Report ID", "agg": None},
-                                  {"channel": "rows", "field": "Report Status", "agg": None},
-                                  {"channel": "rows", "field": "Trx Count", "agg": "sum"}]}
-    fb3 = _FakeReportBuilder({"Europe Report ID": ("T", "Europe Report ID", False),
-                              "Report Status": ("T", "Report Status", False),
-                              "Trx Count": ("T", "Trx Count", True)})
+                    "encodings": [{"channel": "rows", "field": "Region Report ID", "agg": None},
+                                  {"channel": "rows", "field": "Rpt Status", "agg": None},
+                                  {"channel": "rows", "field": "Txn Count", "agg": "sum"}]}
+    fb3 = _FakeReportBuilder({"Region Report ID": ("T", "Region Report ID", False),
+                              "Rpt Status": ("T", "Rpt Status", False),
+                              "Txn Count": ("T", "Txn Count", True)})
     q3 = ReportBuilder._query_state(fb3, pie_two_dims, "pieChart")
     ok = (q3 is not None and len(q3["queryState"]["Category"]["projections"]) == 1
           and q3["queryState"]["Category"]["projections"][0]["queryRef"]
-          == "T.Europe Report ID"
+          == "T.Region Report ID"
           and len(q3["queryState"]["Y"]["projections"]) == 1
           and fb3.stats["field_role_capacity_dropped"] == 1)
     bad += 0 if ok else 1
@@ -3199,7 +3199,7 @@ if __name__ == "__main__":
           f"decided={dec_t} (want multiRowCard/True -- a label BLOCK, not a header+rows table)")
 
     # The SAME shape with a DIFFERENT mark label (not 'Automatic') must ALSO decide multiRowCard
-    # -- real corpus regression (10000056_achc_WF_Payments_Insights): this rule was gated on
+    # -- real corpus regression (WorkbookJ): this rule was gated on
     # mark == 'Automatic' alone, so any OTHER mark with Rows/Columns both empty fell through
     # every rule to the tableEx/undecided fallback -- confirmed by this repo's own
     # suggest_visual_candidates.py, which computes this identical shape check mark-agnostically
@@ -3236,9 +3236,9 @@ if __name__ == "__main__":
           f"{vt_nb0} decided={dec_nb0} (want undecided -- no formula access)")
 
     # With calc_lookup showing the single dimension's formula is a bare string literal, the
-    # rule MUST fire and route to textbox (decided=True).  Real corpus shape: a GCLM nav-tab
-    # worksheet like '0.Key_high_white' whose field 'Key_High' has formula '"Key Highlights"'.
-    _nav_calc_lookup = {"Region": '"Key Highlights"'}
+    # rule MUST fire and route to textbox (decided=True).  Real corpus shape: a WorkbookA nav-tab
+    # worksheet like '0.Color_light' whose field 'Color_high' has formula '"Highlights Page"'.
+    _nav_calc_lookup = {"Region": '"Highlights Page"'}
     vt_nb1, _why_nb1, dec_nb1 = choose_visual(_one_label, calc_lookup=_nav_calc_lookup)
     ok = (vt_nb1 == "textbox" and dec_nb1)
     bad += 0 if ok else 1
@@ -3273,9 +3273,9 @@ if __name__ == "__main__":
 
     # _extract_string_literal: unit-level checks for the bare-literal helper itself.
     _sl_cases = [
-        ('"Key Highlights"', "Key Highlights"),
-        ('"Dormancy"', "Dormancy"),
-        ('  "Dormancy"  ', "Dormancy"),   # leading/trailing whitespace
+        ('"Highlights Page"', "Highlights Page"),
+        ('"Delta"', "Delta"),
+        ('  "Delta"  ', "Delta"),   # leading/trailing whitespace
         ('""', ""),                        # empty string is a valid literal
         ('"Say ""hello"""', 'Say "hello"'),  # escaped double-quote
         ("[SomeColumn]", None),            # field reference -> None
@@ -3368,19 +3368,19 @@ if __name__ == "__main__":
     # dimension lives on Color (not Rows/Cols) must have the color dim routed to the Category
     # well in _query_state, so the chart actually shows per-category bars instead of one
     # grand-total bar. Confirms the REAL shape: measure on rows, color dim on Color, no
-    # Rows/Cols dimension (the shape of GCLM's "5.1 Segmentation(Issuer)" etc.).
+    # Rows/Cols dimension (the shape of WorkbookA's "Sheet 6 - Segmentation(A)" etc.).
     _color_cat_ws = {"name": "w", "mark": "Automatic", "title": None,
-                     "shelves": {"rows": [{"field": "IssuerCount", "agg": "sum"}],
+                     "shelves": {"rows": [{"field": "GroupCount", "agg": "sum"}],
                                  "cols": [], "pages": []},
-                     "encodings": [{"channel": "rows", "field": "IssuerCount", "agg": "sum"},
+                     "encodings": [{"channel": "rows", "field": "GroupCount", "agg": "sum"},
                                    {"channel": "color", "field": "Segment", "agg": None}]}
-    fb_cc = _FakeReportBuilder({"IssuerCount": ("UD", "IssuerCount", True),
+    fb_cc = _FakeReportBuilder({"GroupCount": ("UD", "GroupCount", True),
                                 "Segment":     ("UD", "Segment",     False)})
     q_cc = ReportBuilder._query_state(fb_cc, _color_cat_ws, "columnChart")
     ok = (q_cc is not None
           and "Category" in q_cc["queryState"]
           and q_cc["queryState"]["Category"]["projections"][0]["queryRef"] == "UD.Segment"
-          and q_cc["queryState"]["Y"]["projections"][0]["queryRef"] == "UD.IssuerCount")
+          and q_cc["queryState"]["Y"]["projections"][0]["queryRef"] == "UD.GroupCount")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} color-as-Category fallback: Color dim goes to "
           f"Category well when Rows/Cols has no dimension: "
@@ -3474,48 +3474,48 @@ if __name__ == "__main__":
           f"declined={fb_combo2.declined_encodings} stats={fb_combo2.stats.get('combo_axis_unmatched')}")
 
     # A parameter-gated calculated field used as a plain (non-aggregated) Rows dimension in
-    # Tableau, but that resolves to a DAX MEASURE (real corpus shape: Prevent Dashboard's
-    # `cl.Selected Date - Date Grain - w Dash`, IF-gated on a Parameter, on the Rows shelf of a
+    # Tableau, but that resolves to a DAX MEASURE (real corpus shape: WorkbookB Dashboard's
+    # `cl.Chosen Date - Grain - w Dash`, IF-gated on a Parameter, on the Rows shelf of a
     # tableEx) must be DECLINED, not bound -- a measure evaluates once over the whole filter
     # context, so binding it as the grouping key silently collapses a 12-month table to 1 row.
     _dimshaped_measure_ws = {"name": "w", "mark": "Automatic", "title": None,
-                              "shelves": {"rows": [{"field": "Selected Date Grain", "agg": None}],
-                                          "cols": [{"field": "Lookups", "agg": "sum"}],
+                              "shelves": {"rows": [{"field": "Selected Grain Sel", "agg": None}],
+                                          "cols": [{"field": "Lookup", "agg": "sum"}],
                                           "pages": []},
-                              "encodings": [{"channel": "rows", "field": "Selected Date Grain",
+                              "encodings": [{"channel": "rows", "field": "Selected Grain Sel",
                                              "agg": None},
-                                            {"channel": "cols", "field": "Lookups", "agg": "sum"}]}
-    fb_dm = _FakeReportBuilder({"Selected Date Grain": ("T", "cl.Selected Date Grain", True),
-                                "Lookups": ("T", "cl.Lookups", True)})
+                                            {"channel": "cols", "field": "Lookup", "agg": "sum"}]}
+    fb_dm = _FakeReportBuilder({"Selected Grain Sel": ("T", "cl.Selected Grain Sel", True),
+                                "Lookup": ("T", "cl.Lookup", True)})
     q_dm = ReportBuilder._query_state(fb_dm, _dimshaped_measure_ws, "tableEx", page_key="p1")
     ok = (q_dm is not None
           and len(q_dm["queryState"]["Values"]["projections"]) == 1
-          and q_dm["queryState"]["Values"]["projections"][0]["queryRef"] == "T.cl.Lookups"
+          and q_dm["queryState"]["Values"]["projections"][0]["queryRef"] == "T.cl.Lookup"
           and fb_dm.stats["dim_shaped_field_resolved_to_measure_declined"] == 1
           and len(fb_dm.declined_encodings) == 1
-          and fb_dm.declined_encodings[0]["field"] == "Selected Date Grain")
+          and fb_dm.declined_encodings[0]["field"] == "Selected Grain Sel")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} a dim-shaped Rows field that resolves to a measure is "
           f"declined, not bound as a collapsing grouping key: {q_dm['queryState'] if q_dm else None}"
           f"  declined={fb_dm.declined_encodings}")
 
     # Same hazard on a barChart, where dim (Category) and measure (Y) are DIFFERENT wells --
-    # real corpus shape: Prevent Dashboard's `cl.Slice By` on a barChart's Category channel,
+    # real corpus shape: WorkbookB Dashboard's `cl.Selector` on a barChart's Category channel,
     # which the OLD code routed into Y (via is_measure alone) leaving Category empty and the
     # bars unlabeled. Must decline instead of landing in either well.
     _dimshaped_bar_ws = {"name": "w", "mark": "Automatic", "title": None,
-                         "shelves": {"cols": [{"field": "Slice By", "agg": None}],
+                         "shelves": {"cols": [{"field": "Selector", "agg": None}],
                                      "rows": [{"field": "Count", "agg": "sum"}], "pages": []},
-                         "encodings": [{"channel": "cols", "field": "Slice By", "agg": None},
+                         "encodings": [{"channel": "cols", "field": "Selector", "agg": None},
                                        {"channel": "rows", "field": "Count", "agg": "sum"}]}
-    fb_db = _FakeReportBuilder({"Slice By": ("T", "cl.Slice By", True),
+    fb_db = _FakeReportBuilder({"Selector": ("T", "cl.Selector", True),
                                 "Count": ("T", "cl.Count", True)})
     q_db = ReportBuilder._query_state(fb_db, _dimshaped_bar_ws, "barChart", page_key="p1")
     ok = (q_db is not None
           and "Category" not in q_db["queryState"]
           and q_db["queryState"]["Y"]["projections"][0]["queryRef"] == "T.cl.Count"
           and fb_db.stats["dim_shaped_field_resolved_to_measure_declined"] == 1
-          and fb_db.declined_encodings[0]["field"] == "Slice By")
+          and fb_db.declined_encodings[0]["field"] == "Selector")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} a dim-shaped Cols field on a barChart that resolves to a "
           f"measure is declined rather than stranded in Y with an empty Category: "
@@ -3556,13 +3556,13 @@ if __name__ == "__main__":
           f"agg value ('usr') alone: {_usr_hit!r}")
 
     # _strip_wrapping_parens: unit tests for the helper.
-    assert _strip_wrapping_parens("([SPAC Difference])") == "SPAC Difference", (
-        "outer paren+bracket pair must both be stripped: '([SPAC Difference])' -> "
-        "'SPAC Difference'")
-    assert _strip_wrapping_parens("([TPAC Difference])") == "TPAC Difference"
+    assert _strip_wrapping_parens("([Diff Metric A])") == "Diff Metric A", (
+        "outer paren+bracket pair must both be stripped: '([Diff Metric A])' -> "
+        "'Diff Metric A'")
+    assert _strip_wrapping_parens("([Diff Metric B])") == "Diff Metric B"
     assert _strip_wrapping_parens("(Revenue)") == "Revenue", (
         "paren-only wrap (no inner brackets) still strips the parens")
-    assert _strip_wrapping_parens("Spend Build Up By (copy)") == "Spend Build Up By (copy)", (
+    assert _strip_wrapping_parens("Build Up By (copy)") == "Build Up By (copy)", (
         "a caption that does not START with '(' must never be altered")
     assert _strip_wrapping_parens("(A] + [B)") == "A] + [B", (
         "outer parens ARE stripped; the inner 'A] + [B' has no leading '[' so no bracket "
@@ -3570,41 +3570,41 @@ if __name__ == "__main__":
     assert _strip_wrapping_parens("([A] + [B])") == "[A] + [B]", (
         "outer parens ARE stripped; the inner '[A] + [B]' has embedded brackets so bracket "
         "stripping is skipped -- the result is a garbage name that won't resolve")
-    assert _strip_wrapping_parens("SPAC Difference") == "SPAC Difference", (
+    assert _strip_wrapping_parens("Diff Metric A") == "Diff Metric A", (
         "a plain name with no outer parens is returned unchanged")
     print("  OK   _strip_wrapping_parens: bare literals extracted, mid-caption parens / "
           "complex expressions / plain names -> unchanged")
 
     # _resolve_field paren-stripping fallback (agg branch): a Tableau-auto-named wrapper
-    # caption like "([SPAC Difference])" must fall through to the underlying "SPAC Difference"
+    # caption like "([Diff Metric A])" must fall through to the underlying "Diff Metric A"
     # measure when the wrapper calc was declined (alias exists but not emitted).
     class _FakeNAParen:
-        """Simulates: wrapper calc "([SPAC Difference])" was allocated but DECLINED (not emitted);
-        underlying "SPAC Difference" measure IS emitted."""
+        """Simulates: wrapper calc "([Diff Metric A])" was allocated but DECLINED (not emitted);
+        underlying "Diff Metric A" measure IS emitted."""
         def by_spelling(self, spelling, table=None, emitted_only=False):
             # Wrapper has an alias but the lookup returns nothing (declined, emitted_only=True)
-            if spelling == "([SPAC Difference])":
+            if spelling == "([Diff Metric A])":
                 if emitted_only:
                     return None, None, None   # declined -- not emitted
-                return "T", "([SPAC Difference])", "measure"
+                return "T", "([Diff Metric A])", "measure"
             # Underlying measure IS emitted
-            if spelling == "SPAC Difference":
-                return "T", "SPAC Difference", "measure"
+            if spelling == "Diff Metric A":
+                return "T", "Diff Metric A", "measure"
             return None, None, None
 
         def lookup(self, table, field, emitted_only=False):
-            return None, None   # no shelf-aggregate measure exists for usr/SPAC Difference
+            return None, None   # no shelf-aggregate measure exists for usr/Diff Metric A
 
     class _FakeRBForParen:
         na = _FakeNAParen()
         param_index = {}
 
     _paren_hit = ReportBuilder._resolve_field(
-        _FakeRBForParen(), "([SPAC Difference])", "usr")
-    ok = _paren_hit == ("T", "SPAC Difference", True)
+        _FakeRBForParen(), "([Diff Metric A])", "usr")
+    ok = _paren_hit == ("T", "Diff Metric A", True)
     bad += 0 if ok else 1
-    print(f"  {'OK  ' if ok else 'FAIL'} _resolve_field strips '([SPAC Difference])' -> "
-          f"'SPAC Difference' when the wrapper calc was declined: {_paren_hit!r}")
+    print(f"  {'OK  ' if ok else 'FAIL'} _resolve_field strips '([Diff Metric A])' -> "
+          f"'Diff Metric A' when the wrapper calc was declined: {_paren_hit!r}")
 
     # The emitted wrapper caption must still win when the wrapper IS emitted (no regression).
     class _FakeNAParenEmitted:
@@ -3658,9 +3658,9 @@ if __name__ == "__main__":
     # BI's Category well for a bar/column/line/area chart is a real multi-level axis, so this
     # fix must not over-generalise the pieChart-specific cap onto visual types that never had it.
     bar_two_dims = {**pie_two_dims, "mark": "Bar"}
-    fb4 = _FakeReportBuilder({"Europe Report ID": ("T", "Europe Report ID", False),
-                              "Report Status": ("T", "Report Status", False),
-                              "Trx Count": ("T", "Trx Count", True)})
+    fb4 = _FakeReportBuilder({"Region Report ID": ("T", "Region Report ID", False),
+                              "Rpt Status": ("T", "Rpt Status", False),
+                              "Txn Count": ("T", "Txn Count", True)})
     q4 = ReportBuilder._query_state(fb4, bar_two_dims, "columnChart")
     ok = (q4 is not None and len(q4["queryState"]["Category"]["projections"]) == 2
           and fb4.stats["field_role_capacity_dropped"] == 0)
@@ -3668,36 +3668,36 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state leaves an UNCAPPED visual type's multi-"
           f"dimension Category well untouched: {q4}")
 
-    # The EXACT real corpus shape (PVT Monthly Report, "VEReport- Status" pie chart): the Rows
+    # The EXACT real corpus shape (WorkbookF, "Region Rpt Status" pie chart): the Rows
     # measure is a DECLINED calc (`_resolve_field` returns None for it), so the primary loop
     # binds nothing and falls through to the Text-shelf path -- which must ALSO respect
     # pieChart's Category cap, not just card's. Two plain dimension columns on the Text shelf
-    # (`Europe Report ID`, `Report Status`) must bind only the first into Category.
+    # (`Region Report ID`, `Rpt Status`) must bind only the first into Category.
     pie_declined_measure = {"name": "w", "mark": "Pie", "title": None,
                             "shelves": {"rows": [], "cols": [], "pages": []},
                             "encodings": [{"channel": "rows", "field": "Declined Calc",
                                            "agg": "usr"},
-                                          {"channel": "text", "field": "Europe Report ID",
+                                          {"channel": "text", "field": "Region Report ID",
                                            "agg": "ctd"},
-                                          {"channel": "text", "field": "Report Status",
+                                          {"channel": "text", "field": "Rpt Status",
                                            "agg": None}]}
     fb5 = _FakeReportBuilder({"Declined Calc": None,
-                              "Europe Report ID": ("T", "Europe Report ID", False),
-                              "Report Status": ("T", "Report Status", False)})
+                              "Region Report ID": ("T", "Region Report ID", False),
+                              "Rpt Status": ("T", "Rpt Status", False)})
     q5 = ReportBuilder._query_state(fb5, pie_declined_measure, "pieChart")
     ok = (q5 is not None and len(q5["queryState"]["Category"]["projections"]) == 1
           and q5["queryState"]["Category"]["projections"][0]["queryRef"]
-          == "T.Europe Report ID"
+          == "T.Region Report ID"
           and fb5.stats["text_field_role_capacity_dropped"] == 1)
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state's Text-shelf FALLBACK also caps a "
-          f"pieChart's Category well (the real PVT Monthly Report bug): {q5}  "
+          f"pieChart's Category well (the real WorkbookF bug): {q5}  "
           f"dropped={fb5.stats['text_field_role_capacity_dropped']}")
 
     # `_visual`'s own RPT-ROLE-02 backstop: a worksheet whose chosen visual type carries real
     # WELLS roles, but whose _query_state comes back empty because every shelf field it
     # references failed to resolve (declined by the formula parser, or -- the real shape found
-    # on the NGPO Dashboard corpus workbook -- referenced on a shelf but defined nowhere in the
+    # on the WorkbookC corpus workbook -- referenced on a shelf but defined nowhere in the
     # workbook at all), must be DECLINED, not emitted as a typed container with no query. That
     # container would pass every existing structural check yet still render as an unlabeled
     # blank rectangle in Desktop -- the exact symptom tools/pbip_rules/checks.py's RPT-ROLE-02
@@ -3772,9 +3772,9 @@ if __name__ == "__main__":
     # Tableau's own default is the OPPOSITE of Power BI's: a worksheet affects no sibling on its
     # dashboard unless the author wired an explicit Action FROM it (extract.py's
     # `extract_action_source_worksheets`). A worksheet absent from that set must get
-    # `drillFilterOtherVisuals: False` -- real GCLM bug: the `recency` heatmap had no outgoing
+    # `drillFilterOtherVisuals: False` -- real WorkbookA bug: the `recency` heatmap had no outgoing
     # Action in Tableau at all, yet Power BI's unconditional default True let selecting one of
-    # its cells cross-filter every other Dormancy card to an empty row set.
+    # its cells cross-filter every other Delta card to an empty row set.
     fb_nosrc = _FakeVisualBuilder(
         ws_map={"w": dangling_ws},
         query_state_result={"queryState": {"Values": {"projections": [
@@ -3870,7 +3870,7 @@ if __name__ == "__main__":
           f"visualLink object (no false positive)")
 
     # show_title: a dashboard zone's own show-title='false' must suppress the title even
-    # though the worksheet itself has one -- real corpus shape (achc): 994 zones set this.
+    # though the worksheet itself has one -- real corpus shape (WorkbookJ): 994 zones set this.
     titled_ws = {**dangling_ws, "title": "My Custom Title"}
     zone_ws_hidden_title = {**zone_ws, "show_title": False}
     fb4b = _FakeVisualBuilder(ws_map={"w": titled_ws},
@@ -3932,7 +3932,7 @@ if __name__ == "__main__":
 
     # Auto-title suppression: a chart with NO Tableau <title> element must get title.show=false
     # so PBI does not auto-generate "SUM of X, SUM of Y by Z" as a visible visual header.
-    # Real corpus (GCLM): 300+ visuals without any title were showing raw field-name
+    # Real corpus (WorkbookA): 300+ visuals without any title were showing raw field-name
     # concatenations in Desktop because no objects.title key was emitted at all.
     # `made2d` (barChart, title=None, show_title absent -> True) is exactly that shape.
     _t2d = made2d[1]["visual"].get("objects", {}).get("title", [{}])[0] if made2d else {}
@@ -3954,7 +3954,7 @@ if __name__ == "__main__":
           f"(has its own chrome, no data title): objects={made2f[1]['visual'].get('objects') if made2f else None}")
 
     # Spacer dim skip: _query_state must NOT add Tableau layout spacer dims to PBI field wells.
-    # Real corpus (GCLM Dormancy): 'Blank (1)' (formula='""') and 'Blank' (formula='INT(NULL)')
+    # Real corpus (WorkbookA Delta): 'Blank (1)' (formula='""') and 'Blank' (formula='INT(NULL)')
     # are used as visual separators in heatmap crosstabs. Projecting them to Power BI produces
     # null/(Blank) columns the viewer was never meant to see.
     # Build manually: ws() only puts `chans` into encodings; rows/cols go to shelves only.
@@ -3985,18 +3985,18 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} _query_state skips spacer dims (formula='' or INT(NULL)) "
           f"from PBI field wells: refs={spacer_refs} skipped={fb_spacer.stats['spacer_dims_skipped']}")
 
-    # The other half of the real Desktop bug NGPO Dashboard New - AP Version (MSC) surfaced:
+    # The other half of the real Desktop bug WorkbookC surfaced:
     # `_visual_filters` above already declines a lone unreachable FILTER, but a worksheet's own
     # field WELLS can equally span two tables with no relationship path (e.g. a lineChart's
-    # Category from 'Level 3 - Market Interchange Data', its Y from 'Level 2 Analysis - Data'),
+    # Category from 'Level 3 - Mapping Data', its Y from 'Page L2 - Data'),
     # and nothing checked THAT before this fix -- the visual was emitted, and Desktop refused the
     # whole page with InvalidUnconstrainedJoin. Two tables, no edge -> the visual must be dropped.
     two_table_q = {"queryState": {
         "Category": {"projections": [{"field": {"Column": {"Expression": {"SourceRef": {
-            "Entity": "Level 3 - Market Interchange Data"}}, "Property": "Quarter"}},
+            "Entity": "Level 3 - Mapping Data"}}, "Property": "Quarter"}},
             "queryRef": "x", "nativeQueryRef": "x"}]},
         "Y": {"projections": [{"field": {"Measure": {"Expression": {"SourceRef": {
-            "Entity": "Level 2 Analysis - Data"}}, "Property": "Sales"}},
+            "Entity": "Page L2 - Data"}}, "Property": "Sales"}},
             "queryRef": "y", "nativeQueryRef": "y"}]}}}
     fb4b = _FakeVisualBuilder(ws_map={"w": dangling_ws}, query_state_result=two_table_q)
     made2b = ReportBuilder._visual(fb4b, "p", zone_ws, 0, 0)
@@ -4013,8 +4013,8 @@ if __name__ == "__main__":
     # or every blend relationship this fix adds would be pointless.
     fb4c = _FakeVisualBuilder(
         ws_map={"w": dangling_ws}, query_state_result=two_table_q,
-        rel_adj={"Level 2 Analysis - Data": {"Level 3 - Market Interchange Data"},
-                 "Level 3 - Market Interchange Data": {"Level 2 Analysis - Data"}})
+        rel_adj={"Page L2 - Data": {"Level 3 - Mapping Data"},
+                 "Level 3 - Mapping Data": {"Page L2 - Data"}})
     made2c = ReportBuilder._visual(fb4c, "p", zone_ws, 0, 0)
     ok = made2c is not None and not fb4c.gaps and fb4c.stats["worksheet_visuals"] == 1
     bad += 0 if ok else 1
@@ -4026,7 +4026,7 @@ if __name__ == "__main__":
     # exemption `_visual_filters` already applies at the filter level.
     param_q = {"queryState": {
         "Category": {"projections": [{"field": {"Column": {"Expression": {"SourceRef": {
-            "Entity": "Level 2 Analysis - Data"}}, "Property": "Product"}},
+            "Entity": "Page L2 - Data"}}, "Property": "Product"}},
             "queryRef": "x", "nativeQueryRef": "x"}]},
         "Y": {"projections": [{"field": {"Measure": {"Expression": {"SourceRef": {
             "Entity": "Param Quarter Selection"}}, "Property": "Quarter Selection Selected"}},
@@ -4105,9 +4105,9 @@ if __name__ == "__main__":
     print(f"  {'OK  ' if ok else 'FAIL'} _visual leaves a non-dropdown quick filter at Power "
           f"BI's own default (no regression, no guessed style)")
 
-    # Core bug fix (GCLM): filter/color zone _resolve_field must be scoped to the zone's
+    # Core bug fix (WorkbookA): filter/color zone _resolve_field must be scoped to the zone's
     # own datasource via its `param` attribute, not left to the global first-match that
-    # previously resolved Acquisition's ctry/issr/prod_typ filters to Recommendations
+    # previously resolved Alpha's ctr/grp/item_typ filters to Gamma
     # (allocated earlier, same-named columns across 8 datasources).  This verifies that the
     # correct candidate_tables tuple is passed, not just that the field ultimately resolves.
     class _RecordingFakeVB(_FakeVisualBuilder):
@@ -4120,36 +4120,36 @@ if __name__ == "__main__":
             return self._resolve_field_result
 
     zone_filter_scoped = {
-        "kind": "filter", "name": "fscoped", "field": "Ctry",
-        "param": "[federated.1f31cgn15bs7al169fjs61tjd77x].[none:ctry:nk]",
+        "kind": "filter", "name": "fscoped", "field": "Ctr",
+        "param": "[federated.1f31cgn15bs7al169fjs61tjd77x].[none:ctr:nk]",
         "geom": {"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.05},
     }
     fb_scoped = _RecordingFakeVB(
-        na_tables={"federated.1f31cgn15bs7al169fjs61tjd77x": "Acquisition"},
-        resolve_field_result=("Acquisition", "Ctry", False),
+        na_tables={"federated.1f31cgn15bs7al169fjs61tjd77x": "Alpha"},
+        resolve_field_result=("Alpha", "Ctr", False),
     )
     made_scoped = ReportBuilder._visual(fb_scoped, "p", zone_filter_scoped, 0, 0)
     ok = (made_scoped is not None
           and not fb_scoped.gaps
-          and fb_scoped._last_candidate_tables == ("Acquisition",))
+          and fb_scoped._last_candidate_tables == ("Alpha",))
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} filter zone _resolve_field scoped to own datasource "
           f"(not first global match): candidate_tables={fb_scoped._last_candidate_tables!r}")
 
-    # Color zone uses the same scoping path (covers Key Highlights' PV Volume color-kind zones)
+    # Color zone uses the same scoping path (covers Highlights Page' Flag Volume color-kind zones)
     zone_color_scoped = {
-        "kind": "color", "name": "cscoped", "field": "Prod Id",
-        "param": "[federated.05audxa00naz061cabu8o083ux42].[none:prod_id:nk]",
+        "kind": "color", "name": "cscoped", "field": "Item Id",
+        "param": "[federated.05audxa00naz061cabu8o083ux42].[none:item_id:nk]",
         "geom": {"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.05},
     }
     fb_color_scoped = _RecordingFakeVB(
-        na_tables={"federated.05audxa00naz061cabu8o083ux42": "Key Highlights"},
-        resolve_field_result=("Key Highlights", "Prod Id", False),
+        na_tables={"federated.05audxa00naz061cabu8o083ux42": "Highlights Page"},
+        resolve_field_result=("Highlights Page", "Item Id", False),
     )
     made_color_scoped = ReportBuilder._visual(fb_color_scoped, "p", zone_color_scoped, 0, 0)
     ok = (made_color_scoped is not None
           and not fb_color_scoped.gaps
-          and fb_color_scoped._last_candidate_tables == ("Key Highlights",))
+          and fb_color_scoped._last_candidate_tables == ("Highlights Page",))
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} color zone _resolve_field also scoped to own "
           f"datasource: candidate_tables={fb_color_scoped._last_candidate_tables!r}")
@@ -4167,7 +4167,7 @@ if __name__ == "__main__":
           f"(candidate_tables=None): candidate_tables={fb_no_param._last_candidate_tables!r}")
 
     # Rich text runs: bold/color/fontSize/fontFamily survive per-run, alignment is
-    # paragraph-level -- real corpus shape (achc): a multi-run zone mixing bold and plain text.
+    # paragraph-level -- real corpus shape (WorkbookJ): a multi-run zone mixing bold and plain text.
     zone_text_rich = {"kind": "text", "name": "t1", "text_align": "center",
                       "text_runs": [
                           {"text": "Bold part ", "bold": True, "italic": False,
@@ -4193,7 +4193,7 @@ if __name__ == "__main__":
           f"and paragraph-level alignment for a multi-run text zone: paragraph={para}")
 
     # zone-style background/border applies even with NO text of its own (a purely decorative
-    # colored divider) -- real corpus shape (achc zone id=16: zone-style only, no
+    # colored divider) -- real corpus shape (WorkbookJ zone id=16: zone-style only, no
     # <formatted-text> at all).
     zone_text_bg_only = {"kind": "text", "name": "divider", "text_runs": [],
                          "zone_style": {"background_color": "#d71e28", "border_color": None,
@@ -4220,12 +4220,12 @@ if __name__ == "__main__":
     zone_paramctrl2 = {"kind": "paramctrl", "name": "p2", "field": "[Parameter 10]",
                        "geom": {"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.05}}
     fb8b = _FakeVisualBuilder(param_index={
-        "[Parameter 10]": {"table": "Param pl.Slice By", "column": "Value",
-                           "measure": "Slice By Selected", "tableau": "pl.Slice By"}})
+        "[Parameter 10]": {"table": "Param pl.Selector", "column": "Value",
+                           "measure": "Selector Selected", "tableau": "pl.Selector"}})
     made6b = ReportBuilder._visual(fb8b, "p", zone_paramctrl2, 0, 0)
     ok = (made6b is not None
           and made6b[1]["visual"]["objects"]["header"][0]["properties"]["text"]["expr"]
-              ["Literal"]["Value"] == "'Slice By'")
+              ["Literal"]["Value"] == "'Selector'")
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _visual overrides a paramctrl slicer's default "
           f"\"Value\" header with the parameter's own real caption, 'pl.' prefix stripped same "
@@ -4247,15 +4247,15 @@ if __name__ == "__main__":
           f"at all (no regression for a normally-named parameter)")
 
     # A zone's own "Edit Title..." override (extract.py's `custom_title`) must WIN over the
-    # parameter's own name entirely -- real corpus shape (Prevent Dashboard "1D - OI Summary"):
-    # the `pl.Selected Metric` parameter's own zone is captioned "Chart Metric Type", which
-    # reads nothing like "Selected Metric" (what the parameter-name fallback would show).
+    # parameter's own name entirely -- real corpus shape (WorkbookB Dashboard "Sheet 2 - Summary"):
+    # the `pl.Chosen Metric` parameter's own zone is captioned "Chart Metric Type", which
+    # reads nothing like "Chosen Metric" (what the parameter-name fallback would show).
     zone_paramctrl4 = {"kind": "paramctrl", "name": "p4", "field": "[Parameter 7]",
                        "custom_title": "Chart Metric Type",
                        "geom": {"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.05}}
     fb8d = _FakeVisualBuilder(param_index={
-        "[Parameter 7]": {"table": "Param pl.Selected Metric", "column": "Value",
-                          "measure": "Selected Metric Selected", "tableau": "pl.Selected Metric"}})
+        "[Parameter 7]": {"table": "Param pl.Chosen Metric", "column": "Value",
+                          "measure": "Chosen Metric Selected", "tableau": "pl.Chosen Metric"}})
     made6d = ReportBuilder._visual(fb8d, "p", zone_paramctrl4, 0, 0)
     ok = (made6d is not None
           and made6d[1]["visual"]["objects"]["header"][0]["properties"]["text"]["expr"]
@@ -4267,7 +4267,7 @@ if __name__ == "__main__":
 
     # RPT-POS-01, genuinely-authored bleed (NOT the devicelayouts-duplicate-zone bug, which is
     # fixed separately in extract.py's extract_dashboards): a zone in the PRIMARY <zones> tree
-    # with a small negative x/y (SMB IRF Program's logo zone, Caribbean's section-break image
+    # with a small negative x/y (WorkbookE's logo zone, WorkbookD's section-break image
     # and title-text zone) must clamp its emitted position to 0 without touching width/height,
     # since w/h are independent attributes never derived from a negative starting edge.
     zone_neg_y = {"kind": "bitmap", "name": "logo", "image": "logo.png",
@@ -4325,10 +4325,10 @@ if __name__ == "__main__":
     # falls back to the honest decline gap exactly as before.
     zone_nav_resolved = {"kind": "dashboard-object", "name": "NavBtn",
                          "geom": {"x": 0.0, "y": 0.0, "w": 0.05, "h": 0.05},
-                         "nav_button_hint": "Operational Performance",
-                         "nav_button_caption": "Operational Performance",
-                         "nav_button_target": "Operational Performance Summary"}
-    fb13 = _FakeVisualBuilder(dashboard_names={"Operational Performance Summary"})
+                         "nav_button_hint": "Page Perf",
+                         "nav_button_caption": "Page Perf",
+                         "nav_button_target": "Summary Page X"}
+    fb13 = _FakeVisualBuilder(dashboard_names={"Summary Page X"})
     made11 = ReportBuilder._visual(fb13, "p", zone_nav_resolved, 0, 0)
     body11 = made11[1]["visual"] if made11 else None
     ok = (made11 is not None and not fb13.gaps
@@ -4337,16 +4337,16 @@ if __name__ == "__main__":
               ["Literal"]["Value"] == "'PageNavigation'"
           and body11["visualContainerObjects"]["visualLink"][0]["properties"]
               ["navigationSection"]["expr"]["Literal"]["Value"]
-              == f"'{pbir_name('page', 'Operational Performance Summary')}'"
+              == f"'{pbir_name('page', 'Summary Page X')}'"
           and body11["objects"]["text"][0]["properties"]["text"]["expr"]["Literal"]["Value"]
-              == "'Operational Performance'"
+              == "'Page Perf'"
           and fb13.stats["nav_buttons_wired"] == 1)
     bad += 0 if ok else 1
     print(f"  {'OK  ' if ok else 'FAIL'} _visual wires a resolved nav-button target to a real "
           f"actionButton + PageNavigation visual: gaps={fb13.gaps} body={body11}")
 
     zone_nav_unresolved = {**zone_nav_resolved, "nav_button_target": None}
-    fb14 = _FakeVisualBuilder(dashboard_names={"Operational Performance Summary"})
+    fb14 = _FakeVisualBuilder(dashboard_names={"Summary Page X"})
     made12 = ReportBuilder._visual(fb14, "p", zone_nav_unresolved, 0, 0)
     ok = (made12 is None and len(fb14.gaps) == 1
           and "could not be resolved" in fb14.gaps[0]["reason"]
@@ -4356,7 +4356,7 @@ if __name__ == "__main__":
           f"exactly as before: gaps={fb14.gaps}")
 
     zone_nav_foreign = {**zone_nav_resolved, "nav_button_target": "Some Other Workbook's Page"}
-    fb15 = _FakeVisualBuilder(dashboard_names={"Operational Performance Summary"})
+    fb15 = _FakeVisualBuilder(dashboard_names={"Summary Page X"})
     made13 = ReportBuilder._visual(fb15, "p", zone_nav_foreign, 0, 0)
     ok = made13 is None and len(fb15.gaps) == 1 and fb15.stats["nav_buttons_wired"] == 0
     bad += 0 if ok else 1
@@ -4411,8 +4411,8 @@ if __name__ == "__main__":
           f"backdrop untouched, and returns a tight recommended page height: ys={ys} "
           f"new_h={new_h}")
 
-    # `_fix_sliver_overlaps`: the exact real-corpus shape confirmed on GCLM's Acquisition page
-    # (zone 26 '2.3 Issuer YoY Growth' x=[828.77,1258.74] vs zone 81 '2. Prod ID'
+    # `_fix_sliver_overlaps`: the exact real-corpus shape confirmed on WorkbookA's Alpha page
+    # (zone 26 'Sheet 5 - Growth Rate A' x=[828.77,1258.74] vs zone 81 '2. Item ID'
     # x=[696.26,836.54], both y=[804,1126]) -- a 7.77px sliver overlap in x, full height in y.
     # Must nudge the later box (zone 26, the larger x) forward by exactly the overlap so the
     # two end up edge-to-edge with zero overlap. A big background box fully containing a small
@@ -4421,15 +4421,15 @@ if __name__ == "__main__":
     def _box2(x, y, w, h, name):
         return (name, {"position": {"x": x, "y": y, "width": w, "height": h}, "visual": {}})
     _sliver_fixture = [
-        _box2(696.26, 804, 140.28, 322, "prod_id_list"),
-        _box2(828.77, 804, 430.0, 322, "issuer_yoy_chart"),
+        _box2(696.26, 804, 140.28, 322, "item_id_list"),
+        _box2(828.77, 804, 430.0, 322, "group_yoy_chart"),
         _box2(0, 0, 2220, 1200, "backdrop"),
         _box2(100, 100, 50, 50, "contained_card"),
     ]
     fb_sliver = _FakeVisualBuilder()
     ReportBuilder._fix_sliver_overlaps(fb_sliver, _sliver_fixture)
     xs = {n: o["position"]["x"] for n, o in _sliver_fixture}
-    ok = (xs["prod_id_list"] == 696.26 and xs["issuer_yoy_chart"] == 836.54
+    ok = (xs["item_id_list"] == 696.26 and xs["group_yoy_chart"] == 836.54
           and xs["backdrop"] == 0 and xs["contained_card"] == 100
           and fb_sliver.stats["sliver_overlaps_fixed"] == 1)
     bad += 0 if ok else 1

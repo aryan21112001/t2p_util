@@ -117,10 +117,10 @@ def make_resolver(t, na, alloc_table):
     skip by the caller, never guessed past.
 
     Indexed by BOTH spellings a Tableau formula can use for the same field -- its caption
-    ("Pan Share") and its bare internal identifier ("pan_share", from `fkey()`) -- mirroring
+    ("Part Share") and its bare internal identifier ("part_share", from `fkey()`) -- mirroring
     `TmdlModel._resolver()`'s own dual-spelling index exactly. Real corpus formula
-    (10000056_achc_WF_Payments_Insights): `RANK(SUM([pan_share]))` references the INTERNAL
-    spelling, never the caption "Pan Share" -- indexing by caption alone resolves nothing.
+    (WorkbookJ): `RANK(SUM([part_share]))` references the INTERNAL
+    spelling, never the caption "Part Share" -- indexing by caption alone resolves nothing.
     """
     by_spelling = {}
     for c in t["columns"] + t["calcs"]:
@@ -178,8 +178,8 @@ def find_candidates(ir, na, residue):
     `residue.json`'s own `"table"` field is the ALLOCATED PBI table name (tmdl.py's `route()`
     writes residue entries keyed by `pbi`, after allocation) -- NOT `ir.json`'s raw Tableau
     caption, which can carry a parenthetical suffix the allocated name strips (real corpus
-    example: caption `vca_gdsde_mbi_cust_data_cube (nasoln_dm)` allocates to
-    `vca_gdsde_mbi_cust_data_cube`). Matching against the raw caption here silently found zero
+    example: caption `source_cube_a (nasoln_dm)` allocates to
+    `source_cube_a`). Matching against the raw caption here silently found zero
     declined entries for every real candidate on first pass -- matching against the allocated
     name (`alloc_table_name()`, the same lookup `resolve_via_na()` already uses) is correct.
     """
@@ -377,26 +377,26 @@ def _selftest():
           "worksheet-disagreement, already-covered, unresolved")
 
     # find_candidates: end-to-end against a small synthetic ir/na/residue fixture -- mirrors the
-    # real achc shape (a promotable RANK, a same-name RANK on another table that is a column,
+    # real WorkbookJ shape (a promotable RANK, a same-name RANK on another table that is a column,
     # not a measure) without needing a real build on disk.
     ir = {"tables": [
         {"tableau_name": "ds1", "caption": "T1 (suffix)", "columns": [
-            {"name": "Pan Share", "tableau_name": "[pan_share]"},
+            {"name": "Part Share", "tableau_name": "[part_share]"},
             {"name": "Value1", "tableau_name": "[value1]"},
         ], "calcs": [
-            {"name": "Pan Share Rank", "tableau_name": "[Calculation_1]", "kind": "tablecalc",
-             "formula": "RANK(SUM([pan_share]))",
+            {"name": "Part Share Rank", "tableau_name": "[Calculation_1]", "kind": "tablecalc",
+             "formula": "RANK(SUM([part_share]))",
              "tc_spec": {"ws_order_fields": [{"field": "Value1", "worksheet": "W1"}]}},
             {"name": "Not A Calc", "tableau_name": "[Calculation_2]", "kind": "scalar",
-             "formula": "[pan_share] + 1", "tc_spec": None},
+             "formula": "[part_share] + 1", "tc_spec": None},
         ]},
     ]}
     na = {"tables": {"ds1": "T1"},
-         "columns": {"T1 | pan_share": "Pan Share", "T1 | value1": "Value1"},
+         "columns": {"T1 | part_share": "Part Share", "T1 | value1": "Value1"},
          "measures": {},
-         "emitted": ["T1 | Pan Share", "T1 | Value1"]}
+         "emitted": ["T1 | Part Share", "T1 | Value1"]}
     residue = {"calc_residue": [
-        {"table": "T1", "subject": "Pan Share Rank",
+        {"table": "T1", "subject": "Part Share Rank",
          "reason": "table calculation -- addressing/partitioning is not in the formula text"},
     ]}
     cands = find_candidates(ir, na, residue)
@@ -410,11 +410,11 @@ def _selftest():
     # now reached via this extension's own Specific-Dimension(s) resolution instead.
     t = ir["tables"][0]
     expr, refs = generate_dax(t, na, "T1", cands[0])
-    assert expr == ("RANKX(ALLEXCEPT('T1', 'T1'[Value1]), SUM('T1'[Pan Share]), , DESC, Skip)"), expr
+    assert expr == ("RANKX(ALLEXCEPT('T1', 'T1'[Value1]), SUM('T1'[Part Share]), , DESC, Skip)"), expr
     # tc_partition is passed to dax.translate() already resolved to a DAX string, so the
     # partition field itself is never seen by the formula's OWN resolve() callback -- only the
-    # RANK argument's own reference ("pan_share") is tracked as a ref.
-    assert refs == ["pan_share"], refs
+    # RANK argument's own reference ("part_share") is tracked as a ref.
+    assert refs == ["part_share"], refs
     print(f"OK  generate_dax: {expr}")
 
     # A partition field that never resolves (not a real, emitted column) must raise Unsupported,

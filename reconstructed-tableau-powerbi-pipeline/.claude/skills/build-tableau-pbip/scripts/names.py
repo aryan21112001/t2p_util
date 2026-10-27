@@ -82,7 +82,7 @@ class NameAuthority:
         self._used_in_table = {}    # pbi table -> set of member names (cols + measures share it)
         # MEASURE names are unique across the WHOLE MODEL, not per table -- columns are per table.
         # Desktop:
-        #   Could not add Measure with the name 'CTD of Case Number' because a Measure with the
+        #   Could not add Measure with the name 'CTD of Record Number' because a Measure with the
         #   same name already exists in the 'Model' Model.
         # Note "in the 'Model' Model": the scope is the model. Uniquifying measures per table let
         # 63 duplicates through across the corpus.
@@ -111,7 +111,7 @@ class NameAuthority:
         """Deterministic collision resolution: Name, Name 2, Name 3, ...
 
         Checked CASE-INSENSITIVELY: TOM's own name collection ignores case (Windows/SQL Server
-        convention), so 'BIC Compliance Check' and 'Bic Compliance Check' are the same name to
+        convention), so 'SAMPLE CHECK ALPHA' and 'Sample Check Alpha' are the same name to
         it even though they are different Python strings. A real corpus workbook had exactly
         this pair -- a physical column and a calculated-field copy of it, differing only in
         case -- and `base not in used` let both through; Desktop refused to load the file at
@@ -151,7 +151,7 @@ class NameAuthority:
         `field` is the IDENTITY and must be unique within the table -- Tableau's internal name.
         `caption` is only the display label the Power BI name is derived from. Keying on the
         caption instead collapses two distinct Tableau fields that happen to share a label into one
-        entry, and both then get emitted: SMB IRF Program produced six duplicated members that way,
+        entry, and both then get emitted: WorkbookE produced six duplicated members that way,
         which TOM rejects, so the model would not load.
         """
         k = (table, field)
@@ -323,12 +323,12 @@ class NameAuthority:
 # ---------------------------------------------------------------- self-test
 if __name__ == "__main__":
     na = NameAuthority()
-    c1 = na.column("T", "[bic compliance check]", "Bic Compliance Check")
-    c2 = na.column("T", "[Bic Compliance Check (copy)_1]", "BIC Compliance Check")
-    assert c1 == "Bic Compliance Check", c1
-    assert c2 == "BIC Compliance Check 2", (
-        "case-insensitive collision not caught -- 'BIC Compliance Check' must be disambiguated "
-        f"against 'Bic Compliance Check', got {c2!r}")
+    c1 = na.column("T", "[sample check alpha]", "Sample Check Alpha")
+    c2 = na.column("T", "[Sample Check Alpha (copy)_1]", "SAMPLE CHECK ALPHA")
+    assert c1 == "Sample Check Alpha", c1
+    assert c2 == "SAMPLE CHECK ALPHA 2", (
+        "case-insensitive collision not caught -- 'SAMPLE CHECK ALPHA' must be disambiguated "
+        f"against 'Sample Check Alpha', got {c2!r}")
 
     na2 = NameAuthority()
     na2.measure("A", "[x]", "Total Sales")

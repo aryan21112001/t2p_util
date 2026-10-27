@@ -137,9 +137,9 @@ def _spelling_matches(c, caption):
     """A field is referenced by ITS OWN CAPTION on a shelf (extract.py's own name_map already
     resolves shelf refs that way), but from INSIDE another calc's formula text Tableau just as
     often uses the field's INTERNAL name instead -- and that internal name is not always the
-    same string, case included: real corpus example (Prevent Dashboard), the 'Partner Name -
-    ID' column's own `tableau_name` is literally `[Partner Name - Id]` (lowercase 'Id'), and
-    `cl.Slice By`'s formula references it that exact way. `tmdl.py`'s own `_resolver` already
+    same string, case included: real corpus example (WorkbookB Dashboard), the 'Entity Name - ID
+    ' column's own `tableau_name` is literally `[Entity Name - Id]` (lowercase 'Id'), and
+    `cl.Selector`'s formula references it that exact way. `tmdl.py`'s own `_resolver` already
     indexes a field under BOTH spellings (`c["name"]` and `fkey(c)`) for exactly this reason --
     same fix here, not a new invention."""
     return c["name"] == caption or fkey(c) == caption
@@ -214,10 +214,10 @@ def resolve_pcto_base_agg(tc):
     real Power BI MEASURE already emitted by the main build, not a column, and needs no
     aggregation wrapper at all: `CALCULATE(<measure>, ALLSELECTED(<partition>))` is valid DAX
     against ANY measure regardless of how complex its own formula is. Real corpus confirmation
-    (Prevent Dashboard's "1W - Slice By"): the base pill is `cl.Selected Metric - Count`, a
+    (WorkbookB Dashboard's "Sheet 1 - Selector"): the base pill is `cl.Chosen Metric - Count`, a
     Parameter-switched `IF/ELSEIF` cascade over several different SUMs -- already emitted as its
-    own DAX measure (`'Insights'[cl.Selected Metric - Count]`, referenced the exact same way by a
-    SIBLING measure already in this model, `cl.Selected Metric - Choose Value Type`) -- there is
+    own DAX measure (`'Insights'[cl.Chosen Metric - Count]`, referenced the exact same way by a
+    SIBLING measure already in this model, `cl.Chosen Metric - Choose Value Type`) -- there is
     nothing harder about this case once the base is recognized as already-a-measure; the earlier
     version of this function declined it outright, assuming 'User' aggregation always meant an
     unimplementable pattern, which real inspection shows is not true. `find_candidates` is what
@@ -227,7 +227,7 @@ def resolve_pcto_base_agg(tc):
     attribute (Tableau's own explicit statement, authoritative when present) -- real corpus
     example: a Running Total pill with `aggregation='Sum'`, no `type='PctTotal'` equivalent yet
     confirmed in this corpus but captured the same way for when one is -- else the shelf ref's own
-    underlying-agg segment (real corpus example: Prevent Dashboard's "3B - Days to CE Eligible"
+    underlying-agg segment (real corpus example: WorkbookB Dashboard's "Sheet 3 - Days Eligible"
     PctTotal pill has no `aggregation=` attribute at all; `sum` is the ONLY place its base
     aggregation is recorded)."""
     explicit = tc.get("aggregation")
@@ -280,9 +280,9 @@ def rescue_partition_to_column(ir, na, partition_field, param_values=None, calc_
     `_fold_default_branch` engine rather than re-implemented), the workbook's own SAVED
     parameter value may make which branch is active a FACT, not a guess.
 
-    Real corpus confirmation (Prevent Dashboard's "1W - Slice By"): the partition field is
-    `cl.Slice By`, a Parameter-gated cascade over `pl.Slice By` (saved value `"Partner"`), whose
-    active branch is a real column (`Partner Name - ID`).
+    Real corpus confirmation (WorkbookB Dashboard's "Sheet 1 - Selector"): the partition field is
+    `cl.Selector`, a Parameter-gated cascade over `pl.Selector` (saved value `"Partner"`), whose
+    active branch is a real column (`Entity Name - ID`).
 
     Returns (alloc_table, resolved_column_name) on success, else None -- never guesses; a
     cascade this cannot fully evaluate (an undecidable branch, a non-IF-cascade formula, a
@@ -335,9 +335,9 @@ def find_candidates(ir, na):
     used_names = set()  # (alloc_table, measure_name) already claimed by an EARLIER candidate in
                         # THIS SAME run -- the same base field with a DIFFERENT partition on a
                         # different worksheet is a real, DISTINCT measure, and naming both from
-                        # the base field alone collides (real corpus proof: Prevent Dashboard's
-                        # "3B - Days to CE Eligible" and "3C - Reversals - Time from Defl" both
-                        # promote a Percent-of-Total over `Lookups`, with different partitions --
+                        # the base field alone collides (real corpus proof: WorkbookB Dashboard's
+                        # "Sheet 3 - Days Eligible" and "3C - Reversals - Time from Defl" both
+                        # promote a Percent-of-Total over `Lookup`, with different partitions --
                         # `tools/pbip_rules/lint.py` caught this as a load-breaking duplicate
                         # name before this check existed).
     for ws in ir["worksheets"]:
@@ -390,7 +390,7 @@ def find_candidates(ir, na):
                 if part_kind == "measure":
                     # See rescue_partition_to_column's own docstring -- a partition field that
                     # is ITSELF a parameter-gated dynamic-dimension measure (real corpus shape:
-                    # Prevent Dashboard's "1W - Slice By", partitioned by `cl.Slice By`) may still
+                    # WorkbookB Dashboard's "Sheet 1 - Selector", partitioned by `cl.Selector`) may still
                     # fold down to a real column via the workbook's own saved parameter value.
                     rescued = rescue_partition_to_column(ir, na, partition_field)
                     if rescued is None:
@@ -442,8 +442,8 @@ def generate_dax(cand):
     aggregation-function wrapper, since wrapping an already-scalar measure in `SUM()`/`AVG()`
     would be a type error (and meaningless even where DAX tolerated it): `dax_ref` produces the
     exact same `'Table'[Name]` syntax this model's own build already uses to reference this same
-    measure elsewhere (confirmed: `cl.Selected Metric - Choose Value Type`'s own formula
-    references `'Insights'[cl.Selected Metric - Count]` the identical way)."""
+    measure elsewhere (confirmed: `cl.Chosen Metric - Choose Value Type`'s own formula
+    references `'Insights'[cl.Chosen Metric - Count]` the identical way)."""
     base_ref = dax_ref(cand["alloc_table"], cand["base_field"])
     agg = cand["base_agg"]
     base_expr = base_ref if agg == "MEASURE" else f"{agg}({base_ref})"
@@ -655,7 +655,7 @@ def _selftest():
         "encodings": [{"field": "Sales", "agg": "pcdf", "table_calc": {
             "type": "PctDiff", "ordering_type": "Rows", "ordering_field": None,
             "aggregation": None, "underlying_agg": "sum"}}]},
-        # Real corpus shape (Prevent Dashboard "1W - Slice By"): base value is 'usr' aggregation
+        # Real corpus shape (WorkbookB Dashboard "Sheet 1 - Selector"): base value is 'usr' aggregation
         # AND resolves to a real, already-emitted MEASURE (not just declined by name -- promoted).
         {"name": "W5", "shelves": {"rows": [{"field": "Count", "agg": "pcto"}], "cols": []},
         "encodings": [{"field": "Count", "agg": "pcto", "table_calc": {
@@ -727,35 +727,35 @@ def _selftest():
                      "ALLSELECTED('T1'[Region])))"), expr3
     print(f"OK  generate_dax (MEASURE base -- no aggregation wrapper): {expr3}")
 
-    # rescue_partition_to_column -- real corpus shape (Prevent Dashboard "1W - Slice By"): the
+    # rescue_partition_to_column -- real corpus shape (WorkbookB Dashboard "Sheet 1 - Selector"): the
     # partition field itself is a parameter-gated dynamic-dimension MEASURE, whose active branch
     # folds down to a real column via the workbook's own SAVED parameter value.
     ir_rescue = {"tables": [
         {"tableau_name": "ds1", "caption": "T1",
-         "columns": [{"name": "Partner Name - ID", "tableau_name": "[partner]"},
-                    {"name": "Client Name", "tableau_name": "[client]"}],
-         "calcs": [{"name": "cl.Slice By", "tableau_name": "[calc_sliceby]",
-                   "formula": 'IF [Parameters].[pl.Slice By] = "Partner" THEN '
-                              '[Partner Name - ID] ELSEIF [Parameters].[pl.Slice By] = '
-                              '"Client" THEN [Client Name] END'}]},
-    ], "parameters": [{"name": "pl.Slice By", "tableau_name": "[pl.Slice By]",
+         "columns": [{"name": "Entity Name - ID", "tableau_name": "[partner]"},
+                    {"name": "Account Name", "tableau_name": "[client]"}],
+         "calcs": [{"name": "cl.Selector", "tableau_name": "[calc_sliceby]",
+                   "formula": 'IF [Parameters].[pl.Selector] = "Partner" THEN '
+                              '[Entity Name - ID] ELSEIF [Parameters].[pl.Selector] = '
+                              '"Client" THEN [Account Name] END'}]},
+    ], "parameters": [{"name": "pl.Selector", "tableau_name": "[pl.Selector]",
                        "value": "Partner", "aliases": []}]}
     na_rescue = {"tables": {"ds1": "T1"},
-                "columns": {"T1 | partner": "Partner Name - ID", "T1 | client": "Client Name"},
-                "measures": {"T1 | calc_sliceby": "cl.Slice By"},
-                "emitted": ["T1 | Partner Name - ID", "T1 | Client Name", "T1 | cl.Slice By"]}
-    rescued = rescue_partition_to_column(ir_rescue, na_rescue, "cl.Slice By")
-    assert rescued == ("T1", "Partner Name - ID"), rescued
+                "columns": {"T1 | partner": "Entity Name - ID", "T1 | client": "Account Name"},
+                "measures": {"T1 | calc_sliceby": "cl.Selector"},
+                "emitted": ["T1 | Entity Name - ID", "T1 | Account Name", "T1 | cl.Selector"]}
+    rescued = rescue_partition_to_column(ir_rescue, na_rescue, "cl.Selector")
+    assert rescued == ("T1", "Entity Name - ID"), rescued
     print(f"OK  rescue_partition_to_column: a parameter-gated dynamic-dimension partition "
          f"folds down to the workbook's own SAVED-parameter-value active branch (a real "
          f"column), matching pbir.py's own dim-shaped-measure rescue: {rescued}")
 
     # A branch this fold cannot decide (the SAVED value matches neither ELSEIF, and there is no
     # ELSE) must decline, never guess a branch.
-    ir_rescue2 = {**ir_rescue, "parameters": [{"name": "pl.Slice By",
-                                              "tableau_name": "[pl.Slice By]",
+    ir_rescue2 = {**ir_rescue, "parameters": [{"name": "pl.Selector",
+                                              "tableau_name": "[pl.Selector]",
                                               "value": "Something Else", "aliases": []}]}
-    rescued2 = rescue_partition_to_column(ir_rescue2, na_rescue, "cl.Slice By")
+    rescued2 = rescue_partition_to_column(ir_rescue2, na_rescue, "cl.Selector")
     assert rescued2 is None, rescued2
     print("OK  rescue_partition_to_column declines when the saved parameter value matches no "
          "branch and there is no ELSE (Tableau's own NULL result, never guessed at)")
@@ -766,7 +766,7 @@ def _selftest():
              "calcs": ir_rescue["tables"][0]["calcs"] + [
                  {"name": "Count", "tableau_name": "[count]"}]}]}
     ir_w6["worksheets"] = [
-        {"name": "W6", "shelves": {"rows": [{"field": "cl.Slice By", "agg": None}], "cols": []},
+        {"name": "W6", "shelves": {"rows": [{"field": "cl.Selector", "agg": None}], "cols": []},
         "encodings": [{"field": "Count", "agg": "pcto", "table_calc": {
             "type": "PctTotal", "ordering_type": "Columns", "ordering_field": None,
             "aggregation": None, "underlying_agg": "usr"}}]}]
@@ -774,7 +774,7 @@ def _selftest():
             "emitted": na_rescue["emitted"] + ["T1 | Count"]}
     cands_w6 = find_candidates(ir_w6, na_w6)
     assert len(cands_w6) == 1 and cands_w6[0]["status"] == "candidate", cands_w6
-    assert cands_w6[0]["partition_field"] == "Partner Name - ID", cands_w6[0]
+    assert cands_w6[0]["partition_field"] == "Entity Name - ID", cands_w6[0]
     print(f"OK  find_candidates promotes a PctTotal whose partition is a rescuable "
          f"parameter-gated measure, resolved to its real active-branch column: {cands_w6[0]}")
 
@@ -791,26 +791,26 @@ def _selftest():
     print("OK  resolve_field declines (does not guess) a field ambiguous across 2 tables, or "
          "absent entirely")
 
-    # Real corpus bug this fixes (Prevent Dashboard, 'cl.Slice By' -> 'Partner Name - ID'): a
+    # Real corpus bug this fixes (WorkbookB Dashboard, 'cl.Selector' -> 'Entity Name - ID'): a
     # formula's own literal `[Field]` reference can match a column's INTERNAL `tableau_name`
     # spelling, not its resolved CAPTION -- resolve_field must try both, exactly like tmdl.py's
     # own `_resolver` already does, never declining a field that genuinely does resolve just
     # because the caller asked for it by the "wrong" (but real) spelling.
     ir_intname = {"tables": [
         {"tableau_name": "ds1", "caption": "T1", "columns": [
-            {"name": "Partner Name - ID", "tableau_name": "[Partner Name - Id]"}], "calcs": []},
+            {"name": "Entity Name - ID", "tableau_name": "[Entity Name - Id]"}], "calcs": []},
     ]}
     na_intname = {"tables": {"ds1": "T1"},
-                 "columns": {"T1 | Partner Name - Id": "Partner Name - ID"}, "measures": {},
-                 "emitted": ["T1 | Partner Name - ID"]}
-    alloc, name, kind, reason = resolve_field(ir_intname, na_intname, "Partner Name - Id")
-    assert (alloc, name, kind) == ("T1", "Partner Name - ID", "column"), (alloc, name, kind, reason)
-    alloc2, name2, kind2, reason2 = resolve_field(ir_intname, na_intname, "Partner Name - ID")
-    assert (alloc2, name2, kind2) == ("T1", "Partner Name - ID", "column"), (
+                 "columns": {"T1 | Entity Name - Id": "Entity Name - ID"}, "measures": {},
+                 "emitted": ["T1 | Entity Name - ID"]}
+    alloc, name, kind, reason = resolve_field(ir_intname, na_intname, "Entity Name - Id")
+    assert (alloc, name, kind) == ("T1", "Entity Name - ID", "column"), (alloc, name, kind, reason)
+    alloc2, name2, kind2, reason2 = resolve_field(ir_intname, na_intname, "Entity Name - ID")
+    assert (alloc2, name2, kind2) == ("T1", "Entity Name - ID", "column"), (
         alloc2, name2, kind2, reason2)
     print("OK  resolve_field matches a field by its INTERNAL tableau_name spelling as well as "
-         "its resolved caption -- a formula-literal case mismatch ('Partner Name - Id' vs the "
-         "real caption 'Partner Name - ID') resolves correctly instead of declining")
+         "its resolved caption -- a formula-literal case mismatch ('Entity Name - Id' vs the "
+         "real caption 'Entity Name - ID') resolves correctly instead of declining")
 
     print("extend_tablecalc_quickcalcs.py self-test OK")
 

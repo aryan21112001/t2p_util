@@ -14,12 +14,12 @@ aborted outright (`BadZipFile`) before extraction even began, for a perfectly le
 
 ### Metadata-record backfill never derived a human caption for a column with no `<column>` tag
 A column visible ONLY via `<metadata-record>` (no explicit `<column>` tag in ITS OWN datasource)
-got stored under its raw internal name (`"for_view"`, lowercase) — but every filter/shelf
+got stored under its raw internal name (`"view_flag"`, lowercase) — but every filter/shelf
 reference to that same raw name, anywhere in the workbook, resolves its DISPLAYED caption through
-a workbook-GLOBAL `name_map`, which could return `"For View"` (borrowed from a totally different
-datasource that happens to give the same raw field an explicit caption). Real corpus (GCLM): this
-affected `Activation`/`Dormancy`/`Key Highlights`/`Operations Management`/`Usage Deepdive`/`Usage
-Overview` — 281 real filter sites hit it for one field alone. **Fix:** `extract_datasource` now
+a workbook-GLOBAL `name_map`, which could return `"View Flag"` (borrowed from a totally different
+datasource that happens to give the same raw field an explicit caption). Real corpus (WorkbookA): this
+affected `Beta`/`Delta`/`Highlights Page`/`Ops Sheet`/`Detail Page`/`Overview Page
+` — 281 real filter sites hit it for one field alone. **Fix:** `extract_datasource` now
 takes an optional `name_map` parameter and consults it in the metadata-record backfill loop,
 falling back to the bare raw name only when `name_map` has no entry at all. **Status:** ✅ Fixed.
 Paired with a `pbir.py` fix — see that file's "cross-table filter resolved by caption alone" entry.
@@ -29,37 +29,37 @@ The row above fixed the metadata-record-ONLY backfill path, but a field that DOE
 `<column>` tag in its own datasource — just with no `caption=` attribute on that tag — hit the
 identical bug one code path over: `caption = c.get("caption") or (name or "").strip("[]")` fell
 straight to the bare raw name, never consulting `name_map`, even though the metadata-record path
-right below it in the same function already did. Real corpus (GCLM): confirmed live against a
-real rebuilt Desktop model. `Acquisition`'s own `[prod_id]` column has an explicit `<column
-name='[prod_id]' ... />` tag with NO caption; `Key Highlights`' sibling datasource captions its
-OWN `[prod_id]` as `"Prod Id"`. Left bare, Acquisition's column stayed named `prod_id` while every
-worksheet's Category/axis field well captioned "Prod Id" resolved globally (`by_spelling`) to Key
-Highlights' column instead — an unrelated table with NO working relationship to Acquisition at
+right below it in the same function already did. Real corpus (WorkbookA): confirmed live against a
+real rebuilt Desktop model. `Alpha`'s own `[item_id]` column has an explicit `<column
+name='[item_id]' ... />` tag with NO caption; `Highlights Page`' sibling datasource captions its
+OWN `[item_id]` as `"Item Id"`. Left bare, Alpha's column stayed named `item_id` while every
+worksheet's Category/axis field well captioned "Item Id" resolved globally (`by_spelling`) to Highlights Page
+' column instead — an unrelated table with NO working relationship to Alpha at
 that grain (confirmed via `INFO.RELATIONSHIPS()`/`pbi relationship list`: zero relationship rows
-exist between those two tables in the loaded model at all). Net effect: "2.3 Issuer YoY Growth"
-and "2.3 Market YoY Growth" rendered the IDENTICAL value for every one of 13 real `Prod Id`
-categories — confirmed via `SUMMARIZECOLUMNS('Key Highlights'[Prod Id], "YoY", [Issuer - YoY
-Growth])` returning `0.06002596424510865` for all 13 rows, and confirmed the measure's own DAX
+exist between those two tables in the loaded model at all). Net effect: "Sheet 5 - Growth Rate A"
+and "Sheet 5 - Alt YoY Growth" rendered the IDENTICAL value for every one of 13 real `Item Id`
+categories — confirmed via `SUMMARIZECOLUMNS('Highlights Page'[Item Id], "YoY", [Group - YoY Growth
+])` returning `0.06002596424510865` for all 13 rows, and confirmed the measure's own DAX
 (`DIVIDE(SUM(...), SUM(...))`) was completely ordinary — the bug was never in the DAX, only in
 which TABLE's column the visual's field well resolved to. **Fix:** `caption = c.get("caption") or
 (name_map or {}).get(name) or (name or "").strip("[]")` — the explicit-`<column>` loop now
 consults the SAME workbook-global `name_map` the metadata-record backfill loop already does, one
 line up. **Status:** ✅ Fixed and self-tested, ✅ live-verified the DAX-level symptom is actually
-gone (`SUMMARIZECOLUMNS(Acquisition[Prod Id], "YoY", [Issuer - YoY Growth])` now returns 6 real
+gone (`SUMMARIZECOLUMNS(Alpha[Item Id], "YoY", [Group - YoY Growth])` now returns 6 real
 distinct values instead of one repeated across every row). If you hit this gotcha again, check
 `pbi relationship list` for the two tables first — a zero-relationship-rows result with everything
 else looking correct is the fastest tell.
 
 **But fixing this surfaced a SECOND, still-OPEN problem — do not ship this fix alone.** Giving
-`Acquisition`'s own `prod_id` its missing caption widened "Prod Id" to a caption now shared by 5
-tables workbook-wide (Key Highlights, Activation, Acquisition, Usage Overview, Usage Deepdive all
-happen to have a `prod_id`-shaped column). That immediately broke a DIFFERENT field-well
+`Alpha`'s own `item_id` its missing caption widened "Item Id" to a caption now shared by 5
+tables workbook-wide (Highlights Page, Beta, Alpha, Overview Page, Detail Page all
+happen to have a `item_id`-shaped column). That immediately broke a DIFFERENT field-well
 resolution — `pbir.py`'s `_query_state`, which had NO table-preference logic at all before this
 (see `06-report-pbir-gotchas.md`'s own entry for that half of the fix) — and even after fixing
-THAT too, the real Desktop symptom (several barChart visuals on the Acquisition page render zero
+THAT too, the real Desktop symptom (several barChart visuals on the Alpha page render zero
 bars, no error, category labels only) is STILL NOT RESOLVED as of this entry. Confirmed via a
 controlled A/B test: reverting ONLY the Category field's table back to the pre-fix binding
-(`Key Highlights` instead of `Acquisition`), with every other fix left in place, did NOT bring
+(`Highlights Page` instead of `Alpha`), with every other fix left in place, did NOT bring
 the bars back — ruling out the caption-collision theory as the (sole) cause of the blank-render
 symptom. See `01-orchestrator-gotchas.md`'s "fresh rebuild renders several barChart visuals with
 zero bars, no error" entry for the full open-investigation writeup. **Net effect: this fix is
@@ -78,14 +78,14 @@ the correct multiple. **Fix:** backfill now covers both `class='column'` and `cl
 A lone `member='"(All)"'` member filter is Tableau's own "show every value" sentinel, not a real
 domain value — but it was being emitted as a literal `kind: "in"` filter matching ZERO real rows,
 silently zeroing out every visual that filtered through it (plus anything blend-key cross-filtered
-from it). Real corpus (GCLM): ~74 of 156 cards affected. **Fix:** a single-member value of exactly
+from it). Real corpus (WorkbookA): ~74 of 156 cards affected. **Fix:** a single-member value of exactly
 `"(All)"` now classifies as `kind: "none"` (restricts nothing), the same treatment `level-members`
 already got. **Status:** ✅ Fixed.
 
 ### `classify_formula()`/`is_aggregate()` matched a function call inside a bracketed FIELD NAME
 A raw regex for an aggregate/table-calc function call ran over the formula text after stripping
 only STRING literals, never bracketed `[...]` field references — so a field literally named
-`[Card Count (copy)_...]` (containing the substring `"Count ("`) false-positived as a `COUNT(`
+`[Item Count (copy)_...]` (containing the substring `"Count ("`) false-positived as a `COUNT(`
 call, even though a bracketed field name can never legally contain a real function call. Real
 corpus: 3+ workbooks, several fields silently mis-promoted to measures or mis-tiered to table-calc.
 **Fix:** strip `\[[^\]]*\]` (bracketed field refs) from the formula text before running the
