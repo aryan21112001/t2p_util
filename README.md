@@ -741,7 +741,7 @@ Then open the `.pbip` in Power BI Desktop and work through `COPILOT_FIX_PROMPTS_
 
 **Known gaps** (nothing in the pipeline's main path depends on them):
 
-- The `docs/` folder that the skills link to is not in the archive (`reference-corpus.md`, `schema-reference/*.md`, `translation-architecture-plan.md`, and the Desktop-authored example `docs/examples/GroundTruth.pbip`). Those links are dead. The missing example makes two self-checks unable to run fully: `validate_dummy_data.py` (its self-test is skipped by the smoke test) and `build-tableau-pbip/tests/check_against_ground_truth.py`.
+- Two different folders are both called `docs`. `tools/agents/docs/` is in the repository and holds the architecture and quick-reference documents (four files). The skills and `validate_dummy_data.py` instead link to a `docs/` folder at the root of the pipeline (`reconstructed-tableau-powerbi-pipeline/docs/`), which is not in the archive. It would hold `reference-corpus.md`, `schema-reference/` (`pbip-schema.md`, `pbip-constraint-rules.md`, `tableau-metadata-inventory.md`), `translation-architecture-plan.md`, and the Desktop-authored example `examples/GroundTruth.*`. Those links are dead, and the missing example makes two self-checks unable to run fully: `validate_dummy_data.py` (its self-test is skipped by the smoke test) and `build-tableau-pbip/tests/check_against_ground_truth.py`. If you have that folder from the original environment, adding it at that path would close the gap (it would need the same name clean-up first).
 - The three experimental extension agents and the retired Agent 6 are not exercised by the smoke test beyond their self-tests.
 
 ---
